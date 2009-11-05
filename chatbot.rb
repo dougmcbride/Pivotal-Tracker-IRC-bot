@@ -21,7 +21,7 @@ class Chatbot < IRC
 	  @logger.debug "match_exp = #{match_exp}"
 	  match_data = event.message.match match_exp
 	  if match_data
-	    @logger.debug "MATCH"
+	    @logger.info "MATCH #{match_exp}"
 	    block.call event, match_data
 	  end
 	rescue
