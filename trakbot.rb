@@ -1,6 +1,9 @@
 require 'optparse'
 require 'chatbot'
 require 'pivotal_tracker'
+require 'pp'
+require 'yaml'
+
 
 options = {
   :channel => 'traktest',
@@ -8,7 +11,8 @@ options = {
   :nick => 'trakbot',
   :port => '6667',
   :server => 'irc.freenode.net',
-  :logging => :warn
+  :logging => :warn,
+  :storage_file => 'state.yml'
 }
 
 optparse = OptionParser.new do |opts|
@@ -34,9 +38,33 @@ end
 
 optparse.parse!
 
+class Hash
+  # from http://snippets.dzone.com/user/dubek
+  # Replacing the to_yaml function so it'll serialize hashes sorted (by their keys)
+  #
+  # Original function is in /usr/lib/ruby/1.8/yaml/rubytypes.rb
+  def to_yaml( opts = {} )
+    YAML::quick_emit( object_id, opts ) do |out|
+      out.map( taguri, to_yaml_style ) do |map|
+        sort.each do |k, v|   # <-- here's my addition (the 'sort')
+          map.add( k, v )
+        end
+      end
+    end
+  end
+end
+
+class Symbol
+  def <=>(a)
+    self.to_s <=> a.to_s
+  end
+end
+
 class Trakbot < Chatbot
 	HELP =<<EOT
 trak help: this
+trak token <token>: Teach trakbot your nick's Pivotal Tracker API token
+trak new project <id>: Add a project to trakbot via its id
 EOT
 
   def initialize(options)
@@ -45,13 +73,52 @@ EOT
 
     @logger.level = eval "Logger::#{options[:logging].to_s.upcase}"
 
+    load_state
+
     # The channel to join.
     add_room('#' + options[:channel])
 
     # Here you can modify the trigger phrase
     add_actions({
+      /^(?:trak\s+token)\s*(\S+)$/ => lambda {|e,m|
+        ensure_user e.from
+        @state[:users][e.from][:token] = m[1]
+        save_state
+        reply e, "Got it, #{e.from}."
+      },
+
+      /^(?:trak\s+new\s+project)\s*(\S+)$/ => lambda {|e,m|
+        ensure_user e.from
+        @state[:users][e.from][:projects][m[1]] ||= {}
+        save_state
+        reply e, "Got it, #{e.from}."
+      },
+
       /^(trak.*help|\.\?)$/ => lambda {|e,m| HELP.each_line{|l| reply e, l}}
     })
+  end
+
+  def ensure_user(nick)
+    @state[:users][nick] ||= {:projects => {}}
+  end
+
+  def save_state
+    @logger.debug "Saving state: #{@state.pretty_inspect.chomp}"
+    File.open(@options[:storage_file], 'w') {|f| f.print @state.to_yaml}
+  end
+
+  def load_state
+    if File.exists? @options[:storage_file]
+      @logger.info "Loading state from #{@options[:storage_file]}"
+      @state = YAML::load File.read(@options[:storage_file])
+      @logger.debug "Loaded state: #{@state.pretty_inspect}"
+    else
+      @logger.warn "Storage file not found, starting a new one at #{@options[:storage_file]}"
+      @state = {
+        :users => {}
+      }
+      save_state
+    end
   end
 end
 
