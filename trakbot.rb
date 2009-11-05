@@ -65,6 +65,7 @@ class Trakbot < Chatbot
 trak help: this
 trak token <token>: Teach trakbot your nick's Pivotal Tracker API token
 trak new project <id>: Add a project to trakbot via its id
+trak projects: List known projects
 EOT
 
   def initialize(options)
@@ -90,8 +91,13 @@ EOT
       /^(?:trak\s+new\s+project)\s*(\S+)$/ => lambda {|e,m|
         ensure_user e.from
         @state[:users][e.from][:projects][m[1]] ||= {}
+        t = ensure_tracker e.from, m[1]
         save_state
-        reply e, "Got it, #{e.from}."
+        reply e, "New project: #{t.project[:name]}"
+      },
+
+      /^(?:trak\s+projects)/ => lambda {|e,m|
+          @state[:users][e.from][:projects].keys.each {|p| reply e, "#{p}: " + ensure_tracker(e.from, p).project[:name]}
       },
 
       /^(trak.*help|\.\?)$/ => lambda {|e,m| HELP.each_line{|l| reply e, l}}
