@@ -102,6 +102,14 @@ EOT
     @state[:users][nick] ||= {:projects => {}}
   end
 
+  def ensure_tracker(nick, project_id)
+    if @state[:users][nick][:projects][project_id][:tracker].class != Tracker
+      @state[:users][nick][:projects][project_id][:tracker] = Tracker.new project_id, @state[:users][nick][:token]
+    end
+
+    @state[:users][nick][:projects][project_id][:tracker]
+  end
+
   def save_state
     @logger.debug "Saving state: #{@state.pretty_inspect.chomp}"
     File.open(@options[:storage_file], 'w') {|f| f.print @state.to_yaml}
