@@ -89,6 +89,7 @@ EOT
     # Here you can modify the trigger phrase
     add_actions({
       /^#{@options[:nick]}\s+token\s*(\S+)$/ => lambda {|e,m|
+        ensure_user e.from
         @state[:users][e.from][:token] = m[1]
         save_state
         reply e, "Got it, #{e.from}."
