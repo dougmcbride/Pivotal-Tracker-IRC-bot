@@ -63,18 +63,20 @@ class Symbol
 end
 
 class Trakbot < Chatbot
-	HELP =<<EOT
-trak help: this
-trak token <token>: Teach trakbot your nick's Pivotal Tracker API token
-trak new project <id>: Add a project to trakbot via its id
-trak project <id>: Set your current project
-trak projects: List known projects
-trak finished: List finished stories in project
-EOT
-
   def initialize(options)
     super options[:nick], options[:server], options[:port], options[:full]
     @options = options
+
+	@help =<<EOT
+#{options[:nick]} help: this
+#{options[:nick]} token <token>: Teach trakbot your nick's Pivotal Tracker API token
+#{options[:nick]} new project <id>: Add a project to trakbot via its id
+#{options[:nick]} project <id>: Set your current project
+#{options[:nick]} projects: List known projects
+#{options[:nick]} finished: List finished stories in project
+#{options[:nick]} deliver finished: Deliver (and display) all finished stories
+#{options[:nick]} new (feature|chore|bug|release) <name>: Create a story in the Icebox with given name
+EOT
 
     @logger.level = eval "Logger::#{options[:logging].to_s.upcase}"
 
@@ -86,20 +88,26 @@ EOT
 
     # Here you can modify the trigger phrase
     add_actions({
-      /^(?:trak\s+token)\s*(\S+)$/ => lambda {|e,m|
+      /^#{@options[:nick]}\s+token\s*(\S+)$/ => lambda {|e,m|
         @state[:users][e.from][:token] = m[1]
         save_state
         reply e, "Got it, #{e.from}."
       },
 
-      /^(?:trak\s+new\s+project)\s+(\S+)$/ => lambda {|e,m|
+      /^#{@options[:nick]}\s+new\s+(feature|chore|bug|release)\s+(.+)$/ => lambda {|e,m|
+        t = ensure_tracker e.from, @state[:users][e.from][:current_project]
+	story = t.create_story Story.new(:name => m[2], :story_type => m[1])
+        reply e, "Added story #{story.id}"
+      },
+
+      /^#{@options[:nick]}\s+new\s+project\s+(\S+)$/ => lambda {|e,m|
         @state[:users][e.from][:projects][m[1]] ||= {}
         t = ensure_tracker e.from, m[1]
         save_state
         reply e, "Added project: #{t.project.name}"
       },
 
-      /^(?:trak\s+project)\s+(\S+)$/ => lambda {|e,m|
+      /^#{@options[:nick]}\s+project\s+(\S+)$/ => lambda {|e,m|
         @state[:users][e.from][:projects][m[1]] ||= {}
         t = ensure_tracker e.from, m[1]
 	@state[:users][e.from][:current_project] = m[1]
@@ -107,18 +115,29 @@ EOT
         reply e, "Current project: #{t.project.name}"
       },
 
-      /^(?:trak\s+finished)/ => lambda {|e,m|
+      /^#{@options[:nick]}\s+finished/ => lambda {|e,m|
         t = ensure_tracker e.from, @state[:users][e.from][:current_project]
 	t.find(:state => 'finished').each do |s|
 	  reply e, "#{s.story_type.capitalize} #{s.id}: #{s.name}"
 	end
       },
 
-      /^(?:trak\s+projects)/ => lambda {|e,m|
+      /^#{@options[:nick]}\s+deliver\s+finished/ => lambda {|e,m|
+        t = ensure_tracker e.from, @state[:users][e.from][:current_project]
+	stories = t.deliver_all_finished_stories
+	if stories.empty?
+	  reply e, "No finished stories in project :("
+	else
+	  reply e, "Delivered #{stories.size} stories:"
+	  stories.each {|s| reply e, "#{s.story_type.capitalize} #{s.id}: #{s.name}"}
+	end
+      },
+
+      /^#{@options[:nick]}\s+projects/ => lambda {|e,m|
           @state[:users][e.from][:projects].keys.each {|p| reply e, "#{p}: " + ensure_tracker(e.from, p).project.name}
       },
 
-      /^(trak.*help|\.\?)$/ => lambda {|e,m| HELP.each_line{|l| reply e, l}}
+      /^(#{@options[:nick]}.*help|\.\?)$/ => lambda {|e,m| @help.each_line{|l| reply e, l}}
     })
   end
 
