@@ -74,10 +74,9 @@ class Trakbot < Chatbot
     @help = [
       "help: this",
       "token <token>: Teach trakbot your nick's Pivotal Tracker API token",
-      "new project <id>: Add a project to trakbot via its id",
       "project <id>: Set your current project",
+      "projects: List your known projects",
       "story <id>: Set your current story",
-      "projects: List known projects",
       "finished: List finished stories in project",
       "deliver finished: Deliver (and display) all finished stories",
       "new (feature|chore|bug|release) <name>: Create a story in the Icebox with given name",
@@ -102,19 +101,11 @@ class Trakbot < Chatbot
         reply event, "Got it, #{nick}."
       end,
 
-      %w[new (feature|chore|bug|release) (.+)].to_regexp =>
+      %w[(?:new|add) (feature|chore|bug|release) (.+)].to_regexp =>
       lambda do |nick, event, match|
         tracker = get_tracker nick, get_user_for_nick(nick)[:current_project]
         story = tracker.create_story Story.new(:name => match[2], :story_type => match[1])
         reply event, "Added story #{story.id}"
-      end,
-
-      %w[new project (\S+)].to_regexp =>
-      lambda do |nick, event, match|
-        @state[:users][nick][:projects][match[1]] ||= {}
-        tracker = get_tracker nick, match[1]
-        save_state
-        reply event, "Added project: #{tracker.project.name}"
       end,
 
       %w[project (\S+)].to_regexp =>
