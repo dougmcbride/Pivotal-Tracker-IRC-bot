@@ -106,7 +106,7 @@ class Trakbot < Chatbot
 
       %w[(?:new|add) (feature|chore|bug|release) (.+)].to_regexp =>
       lambda do |nick, event, match|
-        tracker = get_tracker nick, get_user_for_nick(nick)[:current_project]
+        tracker = current_tracker_for nick
         story = tracker.create_story Story.new(:name => match[2], :story_type => match[1])
         reply event, "Added story #{story.id}"
       end,
@@ -124,8 +124,8 @@ class Trakbot < Chatbot
       %w[story (\S+)].to_regexp =>
       lambda do |nick, event, match|
         begin
-          user = get_user_for_nick(nick)
-          tracker = get_tracker nick, user[:current_project]
+          user = get_user_for_nick nick
+          tracker = current_tracker_for nick
           user[:current_story] = match[1]
           save_state
           reply event, "#{nick}'s current story: #{tracker.find_story(match[1]).name}"
@@ -149,8 +149,8 @@ class Trakbot < Chatbot
 
       %w[finished].to_regexp =>
       lambda do |nick, event, match|
-        tracker = get_tracker nick, get_user_for_nick(nick)[:current_project]
         stories = tracker.find(:state => 'finished')
+        tracker = current_tracker_for nick
         reply event, "There are #{stories.size} finished stories."
 
         #reply(event, stories.map{|s| "#{s.story_type.capitalize} #{s.id}: #{s.name}"}.join("\r"))
@@ -162,7 +162,7 @@ class Trakbot < Chatbot
 
       %w[deliver finished].to_regexp =>
       lambda do |nick, event, match|
-        tracker = get_tracker nick, get_user_for_nick(nick)[:current_project]
+        tracker = current_tracker_for nick
         stories = tracker.deliver_all_finished_stories
 
         if stories.empty?
@@ -193,6 +193,14 @@ class Trakbot < Chatbot
 
   def get_tracker(nick, project_id)
     @tracker["#{nick}.#{project_id}"] ||= PivotalTracker.new project_id, @state[:users][nick][:token]
+  end
+
+  def current_tracker_for(nick)
+    get_tracker nick, get_user_for_nick(nick)[:current_project]
+  end
+
+  def current_story_for(nick)
+      get_user_for_nick(nick)[:current_story]
   end
 
   def save_state
