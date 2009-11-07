@@ -75,7 +75,7 @@ class Trakbot < Chatbot
       "help: this",
       "token <token>: Teach trakbot your nick's Pivotal Tracker API token",
       "project <id>: Set your current project",
-      "projects: List known projects",
+      "projects: List your known projects",
       "finished: List finished stories in project",
       "deliver finished: Deliver (and display) all finished stories",
       "new (feature|chore|bug|release) <name>: Create a story in the Icebox with given name",
