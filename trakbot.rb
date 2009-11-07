@@ -89,65 +89,75 @@ EOT
     nick = options[:nick]
 
     add_actions({
-      /^#{nick}\s+token\s*(\S+)$/ => lambda {|e,m|
-        ensure_user e.from
-        @state[:users][e.from][:token] = m[1]
+      /^#{nick}\s+token\s*(\S+)$/ => 
+      lambda {|n,e,m|
+        user = get_user_for_nick n
+        user[:token] = m[1]
         save_state
-        reply e, "Got it, #{e.from}."
+        reply e, "Got it, #{n}."
       },
 
-      /^#{nick}\s+new\s+(feature|chore|bug|release)\s+(.+)$/ => lambda {|e,m|
-        t = ensure_tracker e.from, @state[:users][e.from][:current_project]
-	story = t.create_story Story.new(:name => m[2], :story_type => m[1])
+      /^#{nick}\s+new\s+(feature|chore|bug|release)\s+(.+)$/ =>
+      lambda {|n,e,m|
+        t = get_tracker n, get_user_for_nick(n)[:current_project]
+        story = t.create_story Story.new(:name => m[2], :story_type => m[1])
         reply e, "Added story #{story.id}"
       },
 
-      /^#{nick}\s+new\s+project\s+(\S+)$/ => lambda {|e,m|
-        @state[:users][e.from][:projects][m[1]] ||= {}
-        t = ensure_tracker e.from, m[1]
+      /^#{nick}\s+new\s+project\s+(\S+)$/ =>
+      lambda {|n,e,m|
+        @state[:users][n][:projects][m[1]] ||= {}
+        t = get_tracker n, m[1]
         save_state
         reply e, "Added project: #{t.project.name}"
       },
 
-      /^#{nick}\s+project\s+(\S+)$/ => lambda {|e,m|
-        @state[:users][e.from][:projects][m[1]] ||= {}
-        t = ensure_tracker e.from, m[1]
-	@state[:users][e.from][:current_project] = m[1]
+      /^#{nick}\s+project\s+(\S+)$/ =>
+      lambda {|n,e,m|
+        u = get_user_for_nick(n)
+        u[:projects][m[1]] ||= {}
+        t = get_tracker n, m[1]
+        u[:current_project] = m[1]
         save_state
-        reply e, "#{e.from}'s current project: #{t.project.name}"
+        reply e, "#{n}'s current project: #{t.project.name}"
       },
 
-      /^#{nick}\s+finished/ => lambda {|e,m|
-        t = ensure_tracker e.from, @state[:users][e.from][:current_project]
-	t.find(:state => 'finished').each do |s|
-	  reply e, "#{s.story_type.capitalize} #{s.id}: #{s.name}"
-	end
+      /^#{nick}\s+finished/ =>
+      lambda {|n,e,m|
+        t = get_tracker n, get_user_for_nick(n)[:current_project]
+        t.find(:state => 'finished').each do |s|
+          reply e, "#{s.story_type.capitalize} #{s.id}: #{s.name}"
+        end
       },
 
-      /^#{nick}\s+deliver\s+finished/ => lambda {|e,m|
-        t = ensure_tracker e.from, @state[:users][e.from][:current_project]
-	stories = t.deliver_all_finished_stories
-	if stories.empty?
-	  reply e, "No finished stories in project :("
-	else
-	  reply e, "Delivered #{stories.size} stories:"
-	  stories.each {|s| reply e, "#{s.story_type.capitalize} #{s.id}: #{s.name}"}
-	end
+      /^#{nick}\s+deliver\s+finished/ =>
+      lambda {|n,e,m|
+        t = get_tracker n, get_user_for_nick(n)[:current_project]
+        stories = t.deliver_all_finished_stories
+
+        if stories.empty?
+          reply e, "No finished stories in project :("
+        else
+          reply e, "Delivered #{stories.size} stories:"
+          stories.each {|s| reply e, "#{s.story_type.capitalize} #{s.id}: #{s.name}"}
+        end
       },
 
-      /^#{nick}\s+projects/ => lambda {|e,m|
-          @state[:users][e.from][:projects].keys.each {|p| reply e, "#{p}: " + ensure_tracker(e.from, p).project.name}
+      /^#{nick}\s+projects/ =>
+      lambda {|n,e,m|
+        get_user_for_nick(n)[:projects].keys.each {|p| reply e, "#{p}: " + get_tracker(n, p).project.name}
       },
 
-      /^(#{nick}.*help|\.\?)$/ => lambda {|e,m| @help.each_line{|l| reply e, l}}
+      /^(#{nick}.*help|\.\?)$/ =>
+      lambda {|n,e,m| @help.each_line{|l| reply e, l}}
     })
   end
 
-  def ensure_user(nick)
+  def get_user_for_nick(nick)
     @state[:users][nick] ||= {:projects => {}}
   end
 
-  def ensure_tracker(nick, project_id)
+  def get_tracker(nick, project_id)
     @tracker["#{nick}.#{project_id}"] ||= PivotalTracker.new project_id, @state[:users][nick][:token]
   end
 

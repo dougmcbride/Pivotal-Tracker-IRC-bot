@@ -22,7 +22,7 @@ class Chatbot < IRC
 	  match_data = event.message.match match_exp
 	  if match_data
 	    @logger.info "MATCH #{match_exp}"
-	    block.call event, match_data
+	    block.call event.from, event, match_data
 	  end
 	rescue
 	  @logger.error "ERROR"
