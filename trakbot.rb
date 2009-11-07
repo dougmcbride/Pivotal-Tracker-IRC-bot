@@ -76,6 +76,7 @@ class Trakbot < Chatbot
       "token <token>: Teach trakbot your nick's Pivotal Tracker API token",
       "new project <id>: Add a project to trakbot via its id",
       "project <id>: Set your current project",
+      "story <id>: Set your current story",
       "projects: List known projects",
       "finished: List finished stories in project",
       "deliver finished: Deliver (and display) all finished stories",
@@ -124,6 +125,19 @@ class Trakbot < Chatbot
         user[:current_project] = match[1]
         save_state
         reply event, "#{nick}'s current project: #{tracker.project.name}"
+      end,
+
+      %w[story (\S+)].to_regexp =>
+      lambda do |nick, event, match|
+        begin
+          user = get_user_for_nick(nick)
+          tracker = get_tracker nick, user[:current_project]
+          user[:current_story] = match[1]
+          save_state
+          reply event, "#{nick}'s current story: #{tracker.find_story(match[1]).name}"
+        rescue RestClient::ResourceNotFound
+          reply event, "#{nick}, I couldn't find that one. Maybe it's not in your current project (#{tracker.project.name})?"
+        end
       end,
 
       %w[finished].to_regexp =>
