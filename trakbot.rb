@@ -118,7 +118,7 @@ class Trakbot < Chatbot
         tracker = get_tracker nick, match[1]
         user[:current_project] = match[1]
         save_state
-        reply event, "#{nick}'s current project: #{tracker.project.name}"
+        reply event, "#{nick}, you're on #{tracker.project.name}."
       end,
 
       %w[story (\S+)].to_regexp =>
