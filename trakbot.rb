@@ -149,8 +149,8 @@ class Trakbot < Chatbot
 
       %w[finished].to_regexp =>
       lambda do |nick, event, match|
-        stories = tracker.find(:state => 'finished')
         tracker = current_tracker_for nick
+        stories = tracker.find :state => 'finished'
         reply event, "There are #{stories.size} finished stories."
 
         #reply(event, stories.map{|s| "#{s.story_type.capitalize} #{s.id}: #{s.name}"}.join("\r"))
