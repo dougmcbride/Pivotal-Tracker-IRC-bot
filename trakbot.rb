@@ -67,16 +67,16 @@ class Trakbot < Chatbot
     super options[:nick], options[:server], options[:port], options[:full]
     @options = options
 
-	@help =<<EOT
-#{options[:nick]} help: this
-#{options[:nick]} token <token>: Teach trakbot your nick's Pivotal Tracker API token
-#{options[:nick]} new project <id>: Add a project to trakbot via its id
-#{options[:nick]} project <id>: Set your current project
-#{options[:nick]} projects: List known projects
-#{options[:nick]} finished: List finished stories in project
-#{options[:nick]} deliver finished: Deliver (and display) all finished stories
-#{options[:nick]} new (feature|chore|bug|release) <name>: Create a story in the Icebox with given name
-EOT
+    @help = [
+      "help: this",
+      "token <token>: Teach trakbot your nick's Pivotal Tracker API token",
+      "new project <id>: Add a project to trakbot via its id",
+      "project <id>: Set your current project",
+      "projects: List known projects",
+      "finished: List finished stories in project",
+      "deliver finished: Deliver (and display) all finished stories",
+      "new (feature|chore|bug|release) <name>: Create a story in the Icebox with given name",
+    ]
 
     @logger.level = eval "Logger::#{options[:logging].to_s.upcase}"
 
@@ -89,67 +89,71 @@ EOT
     nick = options[:nick]
 
     add_actions({
-      /^#{nick}\s+token\s*(\S+)$/ => 
-      lambda {|n,e,m|
-        user = get_user_for_nick n
-        user[:token] = m[1]
+      %w[token (\S+)].to_regexp =>
+      lambda do |nick, event, match|
+        user = get_user_for_nick nick
+        user[:token] = match[1]
         save_state
-        reply e, "Got it, #{n}."
-      },
+        reply event, "Got it, #{nick}."
+      end,
 
-      /^#{nick}\s+new\s+(feature|chore|bug|release)\s+(.+)$/ =>
-      lambda {|n,e,m|
-        t = get_tracker n, get_user_for_nick(n)[:current_project]
-        story = t.create_story Story.new(:name => m[2], :story_type => m[1])
-        reply e, "Added story #{story.id}"
-      },
+      %w[new (feature|chore|bug|release) (.+)].to_regexp =>
+      lambda do |nick, event, match|
+        t = get_tracker nick, get_user_for_nick(nick)[:current_project]
+        story = t.create_story Story.new(:name => match[2], :story_type => match[1])
+        reply event, "Added story #{story.id}"
+      end,
 
-      /^#{nick}\s+new\s+project\s+(\S+)$/ =>
-      lambda {|n,e,m|
-        @state[:users][n][:projects][m[1]] ||= {}
-        t = get_tracker n, m[1]
+      %w[new project (\S+)].to_regexp =>
+      lambda do |nick, event, match|
+        @state[:users][nick][:projects][match[1]] ||= {}
+        t = get_tracker nick, match[1]
         save_state
-        reply e, "Added project: #{t.project.name}"
-      },
+        reply event, "Added project: #{t.project.name}"
+      end,
 
-      /^#{nick}\s+project\s+(\S+)$/ =>
-      lambda {|n,e,m|
-        u = get_user_for_nick(n)
-        u[:projects][m[1]] ||= {}
-        t = get_tracker n, m[1]
-        u[:current_project] = m[1]
+      %w[project (\S+)].to_regexp =>
+      lambda do |nick, event, match|
+        u = get_user_for_nick(nick)
+        u[:projects][match[1]] ||= {}
+        t = get_tracker nick, match[1]
+        u[:current_project] = match[1]
         save_state
-        reply e, "#{n}'s current project: #{t.project.name}"
-      },
+        reply event, "#{nick}'s current project: #{t.project.name}"
+      end,
 
-      /^#{nick}\s+finished/ =>
-      lambda {|n,e,m|
-        t = get_tracker n, get_user_for_nick(n)[:current_project]
+      %w[finished].to_regexp =>
+      lambda do |nick, event, match|
+        t = get_tracker nick, get_user_for_nick(nick)[:current_project]
         t.find(:state => 'finished').each do |s|
-          reply e, "#{s.story_type.capitalize} #{s.id}: #{s.name}"
+          reply event, "#{s.story_type.capitalize} #{s.id}: #{s.name}"
         end
-      },
+      end,
 
-      /^#{nick}\s+deliver\s+finished/ =>
-      lambda {|n,e,m|
-        t = get_tracker n, get_user_for_nick(n)[:current_project]
+      %w[deliver finished].to_regexp =>
+      lambda do |nick, event, match|
+        t = get_tracker nick, get_user_for_nick(nick)[:current_project]
         stories = t.deliver_all_finished_stories
 
         if stories.empty?
-          reply e, "No finished stories in project :("
+          reply event, "No finished stories in project :("
         else
-          reply e, "Delivered #{stories.size} stories:"
-          stories.each {|s| reply e, "#{s.story_type.capitalize} #{s.id}: #{s.name}"}
+          reply event, "Delivered #{stories.size} stories:"
+          stories.each {|s| reply event, "#{s.story_type.capitalize} #{s.id}: #{s.name}"}
         end
-      },
+      end,
 
-      /^#{nick}\s+projects/ =>
-      lambda {|n,e,m|
-        get_user_for_nick(n)[:projects].keys.each {|p| reply e, "#{p}: " + get_tracker(n, p).project.name}
-      },
+      %w[projects].to_regexp =>
+      lambda do |nick, event, match|
+        get_user_for_nick(nick)[:projects].keys.each do |p|
+          reply event, "#{p}: " + get_tracker(nick, p).project.name
+        end
+      end,
 
-      /^(#{nick}.*help|\.\?)$/ =>
-      lambda {|n,e,m| @help.each_line{|l| reply e, l}}
+      %w[help].to_regexp =>
+      lambda do |nick, event, match|
+        @help.each {|l| reply event, "#{@options[:nick]} #{l}"}
+      end
     })
   end
 
@@ -180,5 +184,13 @@ EOT
     end
   end
 end
+
+eval <<EOT
+class Array
+  def to_regexp
+    %r|^\#{(['#{options[:nick]}'] + self) * '\\s+'}$|
+  end
+end
+EOT
 
 Trakbot.new(options).start
