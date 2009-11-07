@@ -6,6 +6,8 @@ require 'pivotal-tracker'
 require 'pp'
 require 'yaml'
 
+require 'common_actions'
+
 
 options = {
   :channel => 'traktest',
@@ -63,6 +65,8 @@ class Symbol
 end
 
 class Trakbot < Chatbot
+  include CommonActions
+
   def initialize(options)
     super options[:nick], options[:server], options[:port], options[:full]
     @options = options
@@ -152,7 +156,7 @@ class Trakbot < Chatbot
 
       %w[help].to_regexp =>
       lambda do |nick, event, match|
-        @help.each {|l| reply event, "#{@options[:nick]} #{l}"}
+        @help.each {|l| reply event, l}
       end
     })
   end
@@ -188,7 +192,7 @@ end
 eval <<EOT
 class Array
   def to_regexp
-    %r|^\#{(['#{options[:nick]}'] + self) * '\\s+'}$|
+    %r|^\#{(['#{options[:nick]},'] + self) * '\\s+'}$|
   end
 end
 EOT
