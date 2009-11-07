@@ -86,29 +86,30 @@ EOT
     # The channel to join.
     add_room('#' + options[:channel])
 
-    # Here you can modify the trigger phrase
+    nick = options[:nick]
+
     add_actions({
-      /^#{@options[:nick]}\s+token\s*(\S+)$/ => lambda {|e,m|
+      /^#{nick}\s+token\s*(\S+)$/ => lambda {|e,m|
         ensure_user e.from
         @state[:users][e.from][:token] = m[1]
         save_state
         reply e, "Got it, #{e.from}."
       },
 
-      /^#{@options[:nick]}\s+new\s+(feature|chore|bug|release)\s+(.+)$/ => lambda {|e,m|
+      /^#{nick}\s+new\s+(feature|chore|bug|release)\s+(.+)$/ => lambda {|e,m|
         t = ensure_tracker e.from, @state[:users][e.from][:current_project]
 	story = t.create_story Story.new(:name => m[2], :story_type => m[1])
         reply e, "Added story #{story.id}"
       },
 
-      /^#{@options[:nick]}\s+new\s+project\s+(\S+)$/ => lambda {|e,m|
+      /^#{nick}\s+new\s+project\s+(\S+)$/ => lambda {|e,m|
         @state[:users][e.from][:projects][m[1]] ||= {}
         t = ensure_tracker e.from, m[1]
         save_state
         reply e, "Added project: #{t.project.name}"
       },
 
-      /^#{@options[:nick]}\s+project\s+(\S+)$/ => lambda {|e,m|
+      /^#{nick}\s+project\s+(\S+)$/ => lambda {|e,m|
         @state[:users][e.from][:projects][m[1]] ||= {}
         t = ensure_tracker e.from, m[1]
 	@state[:users][e.from][:current_project] = m[1]
@@ -116,14 +117,14 @@ EOT
         reply e, "#{e.from}'s current project: #{t.project.name}"
       },
 
-      /^#{@options[:nick]}\s+finished/ => lambda {|e,m|
+      /^#{nick}\s+finished/ => lambda {|e,m|
         t = ensure_tracker e.from, @state[:users][e.from][:current_project]
 	t.find(:state => 'finished').each do |s|
 	  reply e, "#{s.story_type.capitalize} #{s.id}: #{s.name}"
 	end
       },
 
-      /^#{@options[:nick]}\s+deliver\s+finished/ => lambda {|e,m|
+      /^#{nick}\s+deliver\s+finished/ => lambda {|e,m|
         t = ensure_tracker e.from, @state[:users][e.from][:current_project]
 	stories = t.deliver_all_finished_stories
 	if stories.empty?
@@ -134,11 +135,11 @@ EOT
 	end
       },
 
-      /^#{@options[:nick]}\s+projects/ => lambda {|e,m|
+      /^#{nick}\s+projects/ => lambda {|e,m|
           @state[:users][e.from][:projects].keys.each {|p| reply e, "#{p}: " + ensure_tracker(e.from, p).project.name}
       },
 
-      /^(#{@options[:nick]}.*help|\.\?)$/ => lambda {|e,m| @help.each_line{|l| reply e, l}}
+      /^(#{nick}.*help|\.\?)$/ => lambda {|e,m| @help.each_line{|l| reply e, l}}
     })
   end
 
