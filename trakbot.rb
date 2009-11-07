@@ -169,7 +169,7 @@ class Trakbot < Chatbot
           reply event, "No finished stories in project :("
         else
           reply event, "Delivered #{stories.size} stories:"
-          stories.each {|s| reply event, "#{s.story_type.capitalize} #{s.id}: #{s.name}"}
+          stories.each_with_index {|s,i| reply event, "#{i+1}) #{s.story_type.capitalize} #{s.id}: #{s.name}"}
         end
       end,
 
