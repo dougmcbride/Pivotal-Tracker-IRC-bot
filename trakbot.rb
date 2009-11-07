@@ -103,41 +103,46 @@ class Trakbot < Chatbot
 
       %w[new (feature|chore|bug|release) (.+)].to_regexp =>
       lambda do |nick, event, match|
-        t = get_tracker nick, get_user_for_nick(nick)[:current_project]
-        story = t.create_story Story.new(:name => match[2], :story_type => match[1])
+        tracker = get_tracker nick, get_user_for_nick(nick)[:current_project]
+        story = tracker.create_story Story.new(:name => match[2], :story_type => match[1])
         reply event, "Added story #{story.id}"
       end,
 
       %w[new project (\S+)].to_regexp =>
       lambda do |nick, event, match|
         @state[:users][nick][:projects][match[1]] ||= {}
-        t = get_tracker nick, match[1]
+        tracker = get_tracker nick, match[1]
         save_state
-        reply event, "Added project: #{t.project.name}"
+        reply event, "Added project: #{tracker.project.name}"
       end,
 
       %w[project (\S+)].to_regexp =>
       lambda do |nick, event, match|
-        u = get_user_for_nick(nick)
-        u[:projects][match[1]] ||= {}
-        t = get_tracker nick, match[1]
-        u[:current_project] = match[1]
+        user = get_user_for_nick(nick)
+        user[:projects][match[1]] ||= {}
+        tracker = get_tracker nick, match[1]
+        user[:current_project] = match[1]
         save_state
-        reply event, "#{nick}'s current project: #{t.project.name}"
+        reply event, "#{nick}'s current project: #{tracker.project.name}"
       end,
 
       %w[finished].to_regexp =>
       lambda do |nick, event, match|
-        t = get_tracker nick, get_user_for_nick(nick)[:current_project]
-        t.find(:state => 'finished').each do |s|
-          reply event, "#{s.story_type.capitalize} #{s.id}: #{s.name}"
+        tracker = get_tracker nick, get_user_for_nick(nick)[:current_project]
+        stories = tracker.find(:state => 'finished')
+        reply event, "There are #{stories.size} finished stories."
+
+        #reply(event, stories.map{|s| "#{s.story_type.capitalize} #{s.id}: #{s.name}"}.join("\r"))
+
+        stories.each_with_index do |s, i|
+          reply event, "#{i+1}) #{s.story_type.capitalize} #{s.id}: #{s.name}"
         end
       end,
 
       %w[deliver finished].to_regexp =>
       lambda do |nick, event, match|
-        t = get_tracker nick, get_user_for_nick(nick)[:current_project]
-        stories = t.deliver_all_finished_stories
+        tracker = get_tracker nick, get_user_for_nick(nick)[:current_project]
+        stories = tracker.deliver_all_finished_stories
 
         if stories.empty?
           reply event, "No finished stories in project :("
