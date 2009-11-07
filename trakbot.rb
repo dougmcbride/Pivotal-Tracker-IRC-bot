@@ -100,7 +100,7 @@ class Trakbot < Chatbot
         reply event, "Got it, #{nick}."
       end,
 
-      %w[new (feature|chore|bug|release) (.+)].to_regexp =>
+      %w[(?:new|add) (feature|chore|bug|release) (.+)].to_regexp =>
       lambda do |nick, event, match|
         tracker = get_tracker nick, get_user_for_nick(nick)[:current_project]
         story = tracker.create_story Story.new(:name => match[2], :story_type => match[1])
