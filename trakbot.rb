@@ -113,7 +113,7 @@ EOT
         t = ensure_tracker e.from, m[1]
 	@state[:users][e.from][:current_project] = m[1]
         save_state
-        reply e, "Current project: #{t.project.name}"
+        reply e, "#{e.from}'s current project: #{t.project.name}"
       },
 
       /^#{@options[:nick]}\s+finished/ => lambda {|e,m|
