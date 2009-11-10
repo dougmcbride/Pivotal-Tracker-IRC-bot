@@ -63,6 +63,7 @@ class Trakbot < Chatbot
       "story current_state unstarted|started|finished|delivered|rejected|accepted: Update the story",
       "comment|note <text>: Add a comment to the story",
       "find <text>: Find stories in the project that match the search criteria in <text>.",
+      "list found: List results of the last find (even if it's long).",
       "finished: List finished stories in the project",
       "deliver finished: Deliver (and display) all finished stories",
       "new feature|chore|bug|release <name>: Create a story in the project's Icebox with given name",
@@ -147,6 +148,12 @@ class Trakbot < Chatbot
       lambda do |nick, event, match|
         user = User.for_nick nick
         list_stories user.find_stories(:state => 'finished'), event, user
+      end,
+
+      %w[(?:y\w*|list found)].to_regexp =>
+      lambda do |nick, event, match|
+        user = User.for_nick nick
+        list_stories user.found_stories, event, user, true
       end,
 
       %w[deliver finished].to_regexp =>
