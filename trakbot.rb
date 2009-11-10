@@ -118,6 +118,7 @@ class Trakbot < Chatbot
         begin
           user = User.for_nick nick
           user.update_story match[1] => match[2]
+          reply event, "#{user.current_story.id}: #{match[1]} --> #{match[2]}"
         rescue RestClient::ResourceNotFound
           reply event, "#{nick}, I couldn't find that one. Maybe it's not in your current project (#{user.current_project.name})?"
         end
@@ -127,7 +128,7 @@ class Trakbot < Chatbot
       lambda do |nick, event, match|
         user = User.for_nick nick
         stories = user.find_stories :state => 'finished'
-        reply event, "There are #{stories.size} finished stories."
+        reply event, "There are #{stories.size} finished stories in #{user.current_project.name}."
 
         stories.each_with_index do |story, i|
           reply event, "#{i+1}) #{story.story_type.capitalize} #{story.id}: #{story.name}"
