@@ -61,7 +61,7 @@ class Trakbot < Chatbot
       "story name|estimate <text>: Update the story",
       "story story_type feature|bug|chore|release: Update the story",
       "story current_state unstarted|started|finished|delivered|rejected|accepted: Update the story",
-      "comment <text>: Add a comment to the story",
+      "comment|note <text>: Add a comment to the story",
       "finished: List finished stories in the project",
       "deliver finished: Deliver (and display) all finished stories",
       "new feature|chore|bug|release <name>: Create a story in the project's Icebox with given name",
@@ -125,7 +125,7 @@ class Trakbot < Chatbot
         end
       end,
 
-      %w[comment (.+)].to_regexp =>
+      %w[(?:comment|note) (.+)].to_regexp =>
       lambda do |nick, event, match|
         begin
           user = User.for_nick nick
