@@ -3,6 +3,12 @@ require 'user'
 require 'pivotal-tracker'
 
 describe "The User class" do
+  before :each do
+    @logger = mock 'logger'
+    @logger.stub! :debug
+    User.logger = @logger
+  end
+
   it "should cache users" do
     user1 = User.for_nick 'fred'
     user2 = User.for_nick 'fred'
@@ -27,6 +33,9 @@ end
 describe "A user" do
   before :each do
     User.users = {}
+    @logger = mock 'logger'
+    @logger.stub! :debug
+    User.logger = @logger
     @user = User.for_nick 'dug'
     @the_project = mock 'project'
     @the_story_id = '9'
