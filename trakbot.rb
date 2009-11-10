@@ -1,11 +1,14 @@
 require 'optparse'
-require 'chatbot'
-require 'rubygems'
-require 'pivotal-tracker'
 require 'pp'
 require 'yaml'
 
+require 'rubygems'
+require 'pivotal-tracker'
+
+require 'chatbot'
 require 'common_actions'
+require 'user'
+
 
 
 options = {
@@ -15,7 +18,7 @@ options = {
   :port => '6667',
   :server => 'irc.freenode.net',
   :logging => :warn,
-  :storage_file => 'state.yml'
+  :storage_location => '.'
 }
 
 optparse = OptionParser.new do |opts|
@@ -29,7 +32,7 @@ optparse = OptionParser.new do |opts|
   opts.on('-s', '--server HOST', 'Specify IRC server hostname. (irc.freenode.net)') {|options[:server]|}
   opts.on('-p', '--port NUMBER', Integer, 'Specify IRC port number. (6667)') {|options[:port]|}
   opts.on('-l', '--logging LEVEL', [:debug, :info, :warn, :error, :fatal], 'Logging level (debug, info, warn, error, fatal) (warn)') {|options[:logging]|}
-  opts.on('-y', '--storage-file FILENAME', 'The file trakbot will use to store its state. (storage.yml)') {|options[:storage_file]|}
+  opts.on('-y', '--storage-file FILENAME', 'The directory trakbot will use to store its state files in. (.)') {|options[:storage_location]|}
 
   #opts.on('-i', '--interval MINUTES', Integer, 'Number of minutes to sleep between checks (10)') do |interval|
     #fail "Interval minimum is 5 minutes." unless interval >= 5
@@ -41,27 +44,6 @@ end
 
 optparse.parse!
 
-class Hash
-  # from http://snippets.dzone.com/user/dubek
-  # Replacing the to_yaml function so it'll serialize hashes sorted (by their keys)
-  #
-  # Original function is in /usr/lib/ruby/1.8/yaml/rubytypes.rb
-  def to_yaml( opts = {} )
-    YAML::quick_emit( object_id, opts ) do |out|
-      out.map( taguri, to_yaml_style ) do |map|
-        sort.each do |k, v|   # <-- here's my addition (the 'sort')
-          map.add( k, v )
-        end
-      end
-    end
-  end
-end
-
-class Symbol
-  def <=>(a)
-    self.to_s <=> a.to_s
-  end
-end
 
 class Trakbot < Chatbot
   include CommonActions
@@ -85,6 +67,10 @@ class Trakbot < Chatbot
     ]
 
     @logger.level = eval "Logger::#{options[:logging].to_s.upcase}"
+
+    User.save_location = options[:storage_location]
+    User.logger = @logger
+
 
     load_state
     @tracker = {}
@@ -113,7 +99,7 @@ class Trakbot < Chatbot
       lambda do |nick, event, match|
         user = User.for_nick nick
         user.current_project_id = match[1]
-        reply event, "#{nick}, you're on #{@user.current_project.name}."
+        reply event, "#{nick}, you're on #{user.current_project.name}."
       end,
 
       %w[story (\S+)].to_regexp =>
@@ -192,18 +178,22 @@ class Trakbot < Chatbot
       get_user_for_nick(nick)[:current_story]
   end
 
+  def save_file
+    File.join(@options[:storage_location], 'state.yml')
+  end
+
   def save_state
     @logger.debug "Saving state: #{@state.pretty_inspect.chomp}"
-    File.open(@options[:storage_file], 'w') {|f| f.print @state.to_yaml}
+    File.open(save_file, 'w') {|f| f.print @state.to_yaml}
   end
 
   def load_state
-    if File.exists? @options[:storage_file]
-      @logger.info "Loading state from #{@options[:storage_file]}"
-      @state = YAML::load File.read(@options[:storage_file])
+    if File.exists? save_file
+      @logger.info "Loading state from #{save_file}"
+      @state = YAML.load_file save_file
       @logger.debug "Loaded state: #{@state.pretty_inspect}"
     else
-      @logger.warn "Storage file not found, starting a new one at #{@options[:storage_file]}"
+      @logger.warn "Storage file not found, starting a new one at #{save_file}"
       @state = {
         :users => {}
       }

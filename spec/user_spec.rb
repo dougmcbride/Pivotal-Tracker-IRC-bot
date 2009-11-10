@@ -14,6 +14,10 @@ describe "The User class" do
     User.save_location.should == '/tmp'
   end
 
+  it "should have a logger" do
+    User.logger = nil
+  end
+
   it "should determine a save filename" do
     User.save_location = '/tmp'
     User.save_filename('dug').should == '/tmp/dug.yml'
