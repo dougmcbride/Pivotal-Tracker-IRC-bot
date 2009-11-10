@@ -151,9 +151,14 @@ class Trakbot < Chatbot
       %w[projects].to_regexp =>
       lambda do |nick, event, match|
         user = User.for_nick nick
-        user.projects.each do |project|
-          reply event, "#{project.id}: #{project.name}"
+        old_project_id = user.current_project.id
+
+        user.projects.each do |project_id|
+          user.current_project_id = project_id
+          reply event, "#{user.current_project.id}: #{user.current_project.name}"
         end
+
+        user.current_project_id = old_project_id
       end,
 
       %w[help].to_regexp =>
