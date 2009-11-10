@@ -162,22 +162,6 @@ class Trakbot < Chatbot
     })
   end
 
-  def get_user_for_nick(nick)
-    @state[:users][nick] ||= {:projects => {}}
-  end
-
-  def get_tracker(nick, project_id)
-    @tracker["#{nick}.#{project_id}"] ||= PivotalTracker.new project_id, @state[:users][nick][:token]
-  end
-
-  def current_tracker_for(nick)
-    get_tracker nick, get_user_for_nick(nick)[:current_project]
-  end
-
-  def current_story_for(nick)
-      get_user_for_nick(nick)[:current_story]
-  end
-
   def save_file
     File.join(@options[:storage_location], 'state.yml')
   end
