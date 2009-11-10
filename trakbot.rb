@@ -140,29 +140,13 @@ class Trakbot < Chatbot
       %w[find (.+)].to_regexp =>
       lambda do |nick, event, match|
         user = User.for_nick nick
-        stories = user.find_stories match[1]
-        too_big = (stories.size > 4 and event.channel.match(/^#/))
-
-        message = "Found #{stories.size} matching #{user.current_project.name} stories."
-        message += " Want me to list them in here?" if too_big
-        reply event, message
-
-        unless too_big
-          stories.each_with_index do |story, i|
-            reply event, "#{i+1}) #{story.story_type.capitalize} #{story.id}: #{story.name}"
-          end
-        end
+        list_stories user.find_stories(match[1]), event, user
       end,
 
       %w[finished].to_regexp =>
       lambda do |nick, event, match|
         user = User.for_nick nick
-        stories = user.find_stories :state => 'finished'
-        reply event, "There are #{stories.size} finished stories in #{user.current_project.name}."
-
-        stories.each_with_index do |story, i|
-          reply event, "#{i+1}) #{story.story_type.capitalize} #{story.id}: #{story.name}"
-        end
+        list_stories user.find_stories(:state => 'finished'), event, user
       end,
 
       %w[deliver finished].to_regexp =>
@@ -174,7 +158,7 @@ class Trakbot < Chatbot
           reply event, "No finished stories in project :("
         else
           reply event, "Delivered #{stories.size} stories:"
-          stories.each_with_index {|s,i| reply event, "#{i+1}) #{s.story_type.capitalize} #{s.id}: #{s.name}"}
+          list_stories stories, event, user
         end
       end,
 
@@ -196,6 +180,20 @@ class Trakbot < Chatbot
         @help.each {|l| reply event, l}
       end
     })
+  end
+
+  def list_stories(stories, event, user)
+    too_big = (stories.size > 4 and event.channel.match(/^#/))
+
+    message = "Found #{stories.size} matching #{user.current_project.name} stories."
+    message += " Want me to list them in here?" if too_big
+    reply event, message
+
+    unless too_big
+      stories.each_with_index do |story, i|
+        reply event, "#{i+1}) #{story.story_type.capitalize} #{story.id}: #{story.name}"
+      end
+    end
   end
 
   def save_file
