@@ -108,7 +108,7 @@ describe "A user" do
     @user.current_project_id = "2"
     @user.current_project_id = "3"
     @user.current_project_id = "4"
-    @user.projects.should == Set.new([@the_project,3,4])
+    @user.projects.should == Set.new(['2','3','4'])
   end
 end
 
