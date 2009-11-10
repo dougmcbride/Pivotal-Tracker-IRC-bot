@@ -63,7 +63,7 @@ class Trakbot < Chatbot
       "story current_state unstarted|started|finished|delivered|rejected|accepted: Update story",
       "finished: List finished stories in project",
       "deliver finished: Deliver (and display) all finished stories",
-      "new feature|chore|bug|release <name>: Create a story in the Icebox with given name",
+      "new feature|chore|bug|release <name>: Create a story in the project's Icebox with given name",
     ]
 
     @logger.level = eval "Logger::#{options[:logging].to_s.upcase}"
@@ -119,6 +119,17 @@ class Trakbot < Chatbot
           user = User.for_nick nick
           user.update_story match[1] => match[2]
           reply event, "#{user.current_story.id}: #{match[1]} --> #{match[2]}"
+        rescue RestClient::ResourceNotFound
+          reply event, "#{nick}, I couldn't find that one. Maybe it's not in your current project (#{user.current_project.name})?"
+        end
+      end,
+
+      %w[comment (.+)].to_regexp =>
+      lambda do |nick, event, match|
+        begin
+          user = User.for_nick nick
+          user.add_note match[1]
+          reply event, "Ok, #{nick}"
         rescue RestClient::ResourceNotFound
           reply event, "#{nick}, I couldn't find that one. Maybe it's not in your current project (#{user.current_project.name})?"
         end

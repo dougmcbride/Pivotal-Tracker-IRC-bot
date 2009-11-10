@@ -64,6 +64,10 @@ class User
     @current_tracker.find criteria
   end
   
+  def create_note(text)
+    @current_tracker.create_note @current_story.id, Note.new(:text => text)
+  end
+
   def self.save_filename(nick)
     File.join self.save_location, "#{nick}.yml"
   end

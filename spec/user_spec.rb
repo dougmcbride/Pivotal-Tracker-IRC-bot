@@ -29,7 +29,9 @@ describe "A user" do
     User.users = {}
     @user = User.for_nick 'dug'
     @the_project = mock 'project'
-    @the_story = mock 'story'
+    @the_story_id = '9'
+    @the_story = mock 'story', :id => @the_story_id
+    @the_note = mock 'note'
     @the_tracker = mock 'tracker', :project => @the_project
     PivotalTracker.stub!(:new).with('2', 'fish').and_return(@the_tracker)
     @user.stub!(:save)
@@ -62,12 +64,21 @@ describe "A user" do
     @user.update_story 'name' => 'mud'
   end
 
-  it "should create stories" do
+  it "should create notes" do
+    atts = {:text => 'I totally disagree with this.'}
+    Note.stub!(:new).with(atts).and_return(@the_note)
+    @user.current_tracker = @the_tracker
+    @user.current_story = @the_story
+    @the_tracker.should_receive(:create_note).with(@the_story_id, @the_note)
+    @user.create_note atts[:text]
+  end
+
+  it "should add stories" do
     atts = {:name => 'bananas should be tasty', :story_type => 'feature'}
     Story.stub!(:new).with(atts).and_return(@the_story)
     @user.current_tracker = @the_tracker
     @the_tracker.should_receive(:create_story).with(@the_story).and_return(@the_story)
-    story = @user.create_story :name => 'bananas should be tasty', :story_type => 'feature'
+    story = @user.create_story atts
     story.should == @the_story
   end
 
