@@ -1,7 +1,6 @@
 require 'optparse'
 require 'chatbot'
 require 'rubygems'
-gem 'jsmestad-pivotal-tracker'
 require 'pivotal-tracker'
 require 'pp'
 require 'yaml'
@@ -98,75 +97,61 @@ class Trakbot < Chatbot
     add_actions({
       %w[token (\S+)].to_regexp =>
       lambda do |nick, event, match|
-        user = get_user_for_nick nick
-        user[:token] = match[1]
-        save_state
+        user = User.for_nick nick
+        user.token = match[1]
         reply event, "Got it, #{nick}."
       end,
 
       %w[(?:new|add) (feature|chore|bug|release) (.+)].to_regexp =>
       lambda do |nick, event, match|
-        user = get_user_for_nick nick
-        tracker = current_tracker_for nick
-        story = tracker.create_story Story.new(:name => match[2], :story_type => match[1])
-        user[:current_story] = story.id
-        save_state
+        user = User.for_nick nick
+        story = user.create_story :name => match[2], :story_type => match[1]
         reply event, "Added story #{story.id}"
       end,
 
       %w[project (\S+)].to_regexp =>
       lambda do |nick, event, match|
-        user = get_user_for_nick(nick)
-        user[:projects][match[1]] ||= {}
-        tracker = get_tracker nick, match[1]
-        user[:current_project] = match[1]
-        save_state
-        reply event, "#{nick}, you're on #{tracker.project.name}."
+        user = User.for_nick nick
+        user.current_project_id = match[1]
+        reply event, "#{nick}, you're on #{@user.current_project.name}."
       end,
 
       %w[story (\S+)].to_regexp =>
       lambda do |nick, event, match|
         begin
-          user = get_user_for_nick nick
-          tracker = current_tracker_for nick
-          user[:current_story] = match[1]
-          save_state
-          reply event, "#{nick}'s current story: #{tracker.find_story(match[1]).name}"
+          user = User.for_nick nick
+          user.current_story_id = match[1]
+          reply event, "#{nick}'s current story: #{user.current_story.name}"
         rescue RestClient::ResourceNotFound
-          reply event, "#{nick}, I couldn't find that one. Maybe it's not in your current project (#{tracker.project.name})?"
+          reply event, "#{nick}, I couldn't find that one. Maybe it's not in your current project (#{user.current_project.name})?"
         end
       end,
 
       %w[story (story_type|estimate|current_state|name) (.+)].to_regexp =>
       lambda do |nick, event, match|
         begin
-          user = get_user_for_nick nick
-          tracker = current_tracker_for nick
-          story = tracker.find_story(current_story_for nick)
-          story.send "#{match[1]}=".to_sym, match[2]
-          tracker.update_story story
+          user = User.for_nick nick
+          user.update_story match[1] => match[2]
         rescue RestClient::ResourceNotFound
-          reply event, "#{nick}, I couldn't find that one. Maybe it's not in your current project (#{tracker.project.name})?"
+          reply event, "#{nick}, I couldn't find that one. Maybe it's not in your current project (#{user.current_project.name})?"
         end
       end,
 
       %w[finished].to_regexp =>
       lambda do |nick, event, match|
-        tracker = current_tracker_for nick
-        stories = tracker.find :state => 'finished'
+        user = User.for_nick nick
+        stories = user.find_stories :state => 'finished'
         reply event, "There are #{stories.size} finished stories."
 
-        #reply(event, stories.map{|s| "#{s.story_type.capitalize} #{s.id}: #{s.name}"}.join("\r"))
-
-        stories.each_with_index do |s, i|
-          reply event, "#{i+1}) #{s.story_type.capitalize} #{s.id}: #{s.name}"
+        stories.each_with_index do |story, i|
+          reply event, "#{i+1}) #{story.story_type.capitalize} #{story.id}: #{story.name}"
         end
       end,
 
       %w[deliver finished].to_regexp =>
       lambda do |nick, event, match|
-        tracker = current_tracker_for nick
-        stories = tracker.deliver_all_finished_stories
+        user = User.for_nick nick
+        stories = user.current_tracker.deliver_all_finished_stories
 
         if stories.empty?
           reply event, "No finished stories in project :("
@@ -178,8 +163,9 @@ class Trakbot < Chatbot
 
       %w[projects].to_regexp =>
       lambda do |nick, event, match|
-        get_user_for_nick(nick)[:projects].keys.each do |p|
-          reply event, "#{p}: " + get_tracker(nick, p).project.name
+        user = User.for_nick nick
+        user.projects.each do |project|
+          reply event, "#{project.id}: #{project.name}"
         end
       end,
 
