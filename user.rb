@@ -15,6 +15,7 @@ class User
   attr_reader :token
   attr_reader :current_project
   attr_reader :projects
+  attr_reader :found_stories
 
   self.users = {}
 
@@ -61,7 +62,7 @@ class User
   end
 
   def find_stories(criteria)
-    @current_tracker.find criteria
+    @found_stories = @current_tracker.find criteria
   end
   
   def create_note(text)

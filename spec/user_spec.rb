@@ -97,6 +97,7 @@ describe "A user" do
     @user.current_tracker = @the_tracker
     @the_tracker.should_receive(:find).with(criteria).and_return(stories)
     @user.find_stories(criteria).should == stories
+    @user.found_stories.should == stories
   end
 
   it "should list projects" do
