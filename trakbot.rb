@@ -62,6 +62,7 @@ class Trakbot < Chatbot
       "story story_type feature|bug|chore|release: Update the story",
       "story current_state unstarted|started|finished|delivered|rejected|accepted: Update the story",
       "comment|note <text>: Add a comment to the story",
+      "find <text>: Find stories in the project that match the search criteria in <text>.",
       "finished: List finished stories in the project",
       "deliver finished: Deliver (and display) all finished stories",
       "new feature|chore|bug|release <name>: Create a story in the project's Icebox with given name",
@@ -133,6 +134,22 @@ class Trakbot < Chatbot
           reply event, "Ok, #{nick}"
         rescue RestClient::ResourceNotFound
           reply event, "#{nick}, I couldn't find that one. Maybe it's not in your current project (#{user.current_project.name})?"
+        end
+      end,
+
+      %w[find (.+)].to_regexp =>
+      lambda do |nick, event, match|
+        user = User.for_nick nick
+        stories = user.find_stories match[1]
+        too_big = (stories.size > 4)
+        message = "Found #{stories.size} matching #{user.current_project.name} stories."
+        message += " Want me to list them?" if too_big
+        reply event, message
+
+        unless too_big
+          stories.each_with_index do |story, i|
+            reply event, "#{i+1}) #{story.story_type.capitalize} #{story.id}: #{story.name}"
+          end
         end
       end,
 
