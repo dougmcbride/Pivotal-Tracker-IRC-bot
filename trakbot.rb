@@ -141,9 +141,10 @@ class Trakbot < Chatbot
       lambda do |nick, event, match|
         user = User.for_nick nick
         stories = user.find_stories match[1]
-        too_big = (stories.size > 4)
+        too_big = (stories.size > 4 and event.channel.match(/^#/))
+
         message = "Found #{stories.size} matching #{user.current_project.name} stories."
-        message += " Want me to list them?" if too_big
+        message += " Want me to list them in here?" if too_big
         reply event, message
 
         unless too_big
