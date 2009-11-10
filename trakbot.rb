@@ -129,7 +129,7 @@ class Trakbot < Chatbot
       lambda do |nick, event, match|
         begin
           user = User.for_nick nick
-          user.add_note match[1]
+          user.create_note match[1]
           reply event, "Ok, #{nick}"
         rescue RestClient::ResourceNotFound
           reply event, "#{nick}, I couldn't find that one. Maybe it's not in your current project (#{user.current_project.name})?"
