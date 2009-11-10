@@ -177,13 +177,14 @@ class Trakbot < Chatbot
 
       %w[help].to_regexp =>
       lambda do |nick, event, match|
-        @help.each {|l| reply event, l}
+        reply event, "#{nick}, I'm sending you the command list privately (it's long)..."
+        @help.each {|l| reply_privately event, l}
       end
     })
   end
 
-  def list_stories(stories, event, user)
-    too_big = (stories.size > 4 and event.channel.match(/^#/))
+  def list_stories(stories, event, user, force = false)
+    too_big = (!force and stories.size > 4 and event.channel.match(/^#/))
 
     message = "Found #{stories.size} matching #{user.current_project.name} stories."
     message += " Want me to list them in here?" if too_big

@@ -42,7 +42,14 @@ class Chatbot < IRC
 
   def reply(event, msg)
     to = event.channel == nick ? event.from : event.channel
+    send_message_to to, msg
+  end
 
+  def reply_privately(event, msg)
+    send_message_to event.from, msg
+  end
+
+  def send_message_to(to, msg)
     if msg.sub! %r(^/me\s+), ''
       send_action to, msg
     else
