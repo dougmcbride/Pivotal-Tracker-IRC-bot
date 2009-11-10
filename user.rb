@@ -4,7 +4,10 @@ require 'rubygems'
 require 'pivotal-tracker'
 
 class User
-  class << self; attr_accessor :save_location; end
+  class << self
+    attr_accessor :save_location
+    attr_accessor :users
+  end
   
   attr_accessor :current_story
   attr_accessor :current_tracker
@@ -12,7 +15,7 @@ class User
   attr_reader :current_project
   attr_reader :projects
 
-  @@users = {}
+  self.users = {}
 
   def initialize(nick)
     @projects = Set.new
@@ -20,8 +23,8 @@ class User
   end
 
   def self.for_nick(nick)
-    user = @@users[nick] || YAML.load_file(self.save_filename(nick)) rescue User.new(nick)
-    @@users[nick] ||= user
+    user = self.users[nick] || YAML.load_file(self.save_filename(nick)) rescue User.new(nick)
+    self.users[nick] ||= user
   end
 
   def token=(token)

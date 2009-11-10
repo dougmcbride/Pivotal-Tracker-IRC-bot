@@ -3,7 +3,11 @@ require 'user'
 require 'pivotal-tracker'
 
 describe "The User class" do
-  it "should cache users"
+  it "should cache users" do
+    user1 = User.for_nick 'fred'
+    user2 = User.for_nick 'fred'
+    user1.should == user2
+  end
   
   it "should have a save location" do
     User.save_location = '/tmp'
@@ -18,6 +22,7 @@ end
 
 describe "A user" do
   before :each do
+    User.users = {}
     @user = User.for_nick 'dug'
     @the_project = mock 'project'
     @the_story = mock 'story'
