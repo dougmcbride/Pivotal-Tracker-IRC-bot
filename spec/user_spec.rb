@@ -111,5 +111,12 @@ describe "A user" do
     @user.current_project_id = "4"
     @user.projects.should == Set.new(['2','3','4'])
   end
+
+  it "should keep track of its initials" do
+    @user.initials.should be_nil
+    @user.should_receive(:save)
+    @user.initials = 'JB'
+    @user.initials.should == 'JB'
+  end
 end
 

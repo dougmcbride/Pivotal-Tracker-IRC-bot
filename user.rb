@@ -13,6 +13,7 @@ class User
   attr_accessor :current_story
   attr_accessor :current_tracker
   attr_reader :token
+  attr_reader :initials
   attr_reader :current_project
   attr_reader :projects
   attr_reader :found_stories
@@ -32,6 +33,11 @@ class User
 
   def token=(token)
     @token = token
+    save
+  end
+
+  def initials=(initials)
+    @initials = initials
     save
   end
 

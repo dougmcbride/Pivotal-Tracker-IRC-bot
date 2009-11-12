@@ -55,6 +55,7 @@ class Trakbot < Chatbot
     @help = [
       "help: this",
       "token <token>: Teach trakbot your nick's Pivotal Tracker API token",
+      "initials <initials>: Teach me your nick's Pivotal Tracker initials",
       "project <id>: Set your current project",
       "projects: List your known projects",
       "story <id>: Set your current story",
@@ -89,6 +90,13 @@ class Trakbot < Chatbot
       lambda do |nick, event, match|
         user = User.for_nick nick
         user.token = match[1]
+        reply event, one_of["Got it, #{nick}.", "Gotcha, #{nick}.", "All righty, #{nick}!"]
+      end,
+
+      %w[initials (\S+)].to_regexp =>
+      lambda do |nick, event, match|
+        user = User.for_nick nick
+        user.initials = match[1]
         reply event, "Got it, #{nick}."
       end,
 
@@ -149,6 +157,17 @@ class Trakbot < Chatbot
       lambda do |nick, event, match|
         user = User.for_nick nick
         list_stories user.find_stories(:state => 'finished'), event, user
+      end,
+
+      %w[work].to_regexp =>
+      lambda do |nick, event, match|
+        user = User.for_nick nick
+
+        if user.initials
+          list_stories user.find_stories(:owned_by => user.initials, :state => 'started'), event, user
+        else
+          reply event, "I need your Pivotal Tracker initials please: 'initials <initials>'"
+        end
       end,
 
       %w[(?:y\w*|list found)].to_regexp =>
