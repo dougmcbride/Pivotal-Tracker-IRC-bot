@@ -14,7 +14,7 @@ require 'user'
 options = {
   :channel => 'traktest',
   :full => 'Pivotal Tracker IRC bot',
-  :nick => 'trakbot',
+  :nick => 'trackbot',
   :port => '6667',
   :server => 'irc.freenode.net',
   :logging => :warn,
@@ -32,7 +32,7 @@ optparse = OptionParser.new do |opts|
   opts.on('-s', '--server HOST', 'Specify IRC server hostname. (irc.freenode.net)') {|options[:server]|}
   opts.on('-p', '--port NUMBER', Integer, 'Specify IRC port number. (6667)') {|options[:port]|}
   opts.on('-l', '--logging LEVEL', [:debug, :info, :warn, :error, :fatal], 'Logging level (debug, info, warn, error, fatal) (warn)') {|options[:logging]|}
-  opts.on('-y', '--storage-file FILENAME', 'The directory trakbot will use to store its state files in. (.)') {|options[:storage_location]|}
+  opts.on('-y', '--storage-file FILENAME', 'The directory the bot will use to store its state files in. (.)') {|options[:storage_location]|}
 
   #opts.on('-i', '--interval MINUTES', Integer, 'Number of minutes to sleep between checks (10)') do |interval|
     #fail "Interval minimum is 5 minutes." unless interval >= 5
@@ -54,7 +54,7 @@ class Trakbot < Chatbot
 
     @help = [
       "help: this",
-      "token <token>: Teach trakbot your nick's Pivotal Tracker API token",
+      "token <token>: Teach me your nick's Pivotal Tracker API token",
       "initials <initials>: Teach me your nick's Pivotal Tracker initials",
       "project <id>: Set your current project",
       "projects: List your known projects",
