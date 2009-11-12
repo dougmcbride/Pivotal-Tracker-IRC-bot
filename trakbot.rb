@@ -67,6 +67,7 @@ class Trakbot < Chatbot
       "finished: List finished stories in the project",
       "deliver finished: Deliver (and display) all finished stories",
       "new feature|chore|bug|release <name>: Create a story in the project's Icebox with given name",
+      "work [user]: Show what stories [user] is working on (default is you)"
     ]
 
     @logger.level = eval "Logger::#{options[:logging].to_s.upcase}"
