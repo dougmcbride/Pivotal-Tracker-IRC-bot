@@ -34,11 +34,6 @@ optparse = OptionParser.new do |opts|
   opts.on('-l', '--logging LEVEL', [:debug, :info, :warn, :error, :fatal], 'Logging level (debug, info, warn, error, fatal) (warn)') {|options[:logging]|}
   opts.on('-y', '--storage-file FILENAME', 'The directory the bot will use to store its state files in. (.)') {|options[:storage_location]|}
 
-  #opts.on('-i', '--interval MINUTES', Integer, 'Number of minutes to sleep between checks (10)') do |interval|
-    #fail "Interval minimum is 5 minutes." unless interval >= 5
-    #options[:interval] = interval
-  #end
-
   opts.on_tail('-h', '--help', 'Display this screen') {puts opts; exit}
 end
 
