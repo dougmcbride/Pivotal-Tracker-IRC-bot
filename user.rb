@@ -15,13 +15,11 @@ class User
   attr_reader :token
   attr_reader :initials
   attr_reader :current_project
-  attr_reader :projects
   attr_reader :found_stories
 
   self.users = {}
 
   def initialize(nick)
-    @projects = Set.new
     @nick = nick
   end
 
@@ -41,10 +39,13 @@ class User
     save
   end
 
+  def projects
+    @current_tracker.projects
+  end
+
   def current_project_id=(project_id)
     @current_tracker = PivotalTracker.new project_id, @token
     @current_project = @current_tracker.project
-    @projects << project_id
     save
   end
 

@@ -101,15 +101,9 @@ describe "A user" do
   end
 
   it "should list projects" do
-    tracker3 = mock 'tracker3', :project => 3
-    tracker4 = mock 'tracker4', :project => 4
-    PivotalTracker.stub!(:new).with('3', 'fish').and_return(tracker3)
-    PivotalTracker.stub!(:new).with('4', 'fish').and_return(tracker4)
-    @user.token = 'fish'
-    @user.current_project_id = "2"
-    @user.current_project_id = "3"
-    @user.current_project_id = "4"
-    @user.projects.should == Set.new(['2','3','4'])
+    @user.current_tracker = @the_tracker
+    @the_tracker.should_receive(:projects).and_return([2, 3, 4])
+    @user.projects.should == [2, 3, 4]
   end
 
   it "should keep track of its initials" do

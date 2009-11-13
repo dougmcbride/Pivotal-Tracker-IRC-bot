@@ -52,7 +52,7 @@ class Trakbot < Chatbot
       "token <token>: Teach me your nick's Pivotal Tracker API token",
       "initials [nick] <initials>: Teach me your nick's  (or another nick's) Pivotal Tracker initials",
       "project <id>: Set your current project",
-      "projects: List your known projects",
+      "projects: List all known projects",
       "story <id>: Set your current story",
       "story name|estimate <text>: Update the story",
       "story story_type feature|bug|chore|release: Update the story",
@@ -209,14 +209,10 @@ class Trakbot < Chatbot
       %w[projects].to_regexp =>
       lambda do |nick, event, match|
         user = User.for_nick nick
-        old_project_id = user.current_project.id
 
-        user.projects.each do |project_id|
-          user.current_project_id = project_id
-          reply event, "#{user.current_project.id}: #{user.current_project.name}"
+        user.projects.sort_by{|p| p.name}.each_with_index do |project, i|
+          reply event, "#{i+1}) #{project.id}: #{project.name}"
         end
-
-        user.current_project_id = old_project_id
       end,
 
       %w[help].to_regexp =>
