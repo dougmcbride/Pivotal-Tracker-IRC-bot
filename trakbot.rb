@@ -38,6 +38,8 @@ end
 optparse.parse!
 
 
+class ChoreFinishedError < StandardError; end
+
 class Trakbot < Chatbot
   include CommonActions
 
@@ -122,10 +124,13 @@ class Trakbot < Chatbot
       lambda do |nick, event, match|
         begin
           user = User.for_nick nick
+          fail ChoreFinishedError if user.current_story.story_type == 'chore' and match[1] == 'current_state' and match[2] == 'finished'
           user.update_story match[1] => match[2]
           reply event, "#{user.current_story.id}: #{match[1]} --> #{match[2]}"
         rescue RestClient::ResourceNotFound
           reply event, "#{nick}, I couldn't find that one. Maybe it's not in your current project (#{user.current_project.name})?"
+        rescue ChoreFinishedError
+          reply event, "#{nick}, chores cannot be 'finished'. You probably want 'accepted'."
         end
       end,
 
