@@ -24,11 +24,9 @@ options = {
 optparse = OptionParser.new do |opts|
   opts.banner = "Usage: #{$0} [options]"
 
-  opts.on('-u', '--username USERNAME', 'Specify rifftrax.com username.') {|options[:username]|}
-  opts.on('-w', '--password PASSWORD', 'Specify rifftrax.com password.') {|options[:password]|}
   opts.on('-c', '--channel NAME', 'Specify IRC channel to /join. (test)') {|options[:channel]|}
-  opts.on('-f', '--full-name NICK', 'Specify the bot\'s IRC full name. (iRiff report bot)') {|options[:full]|}
-  opts.on('-n', '--nick NICK', 'Specify the bot\'s IRC nick. (riffbot)') {|options[:nick]|}
+  opts.on('-f', '--full-name NICK', "Specify the bot\'s IRC full name. (#{options[:full]})") {|options[:full]|}
+  opts.on('-n', '--nick NICK', "Specify the bot\'s IRC nick. (#{options[:nick]})") {|options[:nick]|}
   opts.on('-s', '--server HOST', 'Specify IRC server hostname. (irc.freenode.net)') {|options[:server]|}
   opts.on('-p', '--port NUMBER', Integer, 'Specify IRC port number. (6667)') {|options[:port]|}
   opts.on('-l', '--logging LEVEL', [:debug, :info, :warn, :error, :fatal], 'Logging level (debug, info, warn, error, fatal) (warn)') {|options[:logging]|}
