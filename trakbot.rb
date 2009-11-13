@@ -50,7 +50,7 @@ class Trakbot < Chatbot
     @help = [
       "help: this",
       "token <token>: Teach me your nick's Pivotal Tracker API token",
-      "initials <initials>: Teach me your nick's Pivotal Tracker initials",
+      "initials [nick] <initials>: Teach me your nick's  (or another nick's) Pivotal Tracker initials",
       "project <id>: Set your current project",
       "projects: List your known projects",
       "story <id>: Set your current story",
@@ -88,10 +88,17 @@ class Trakbot < Chatbot
         reply event, one_of["Got it, #{nick}.", "Gotcha, #{nick}.", "All righty, #{nick}!"]
       end,
 
-      %w[initials (\S+)].to_regexp =>
+      %w[initials (\w+)].to_regexp =>
       lambda do |nick, event, match|
         user = User.for_nick nick
         user.initials = match[1]
+        reply event, "Got it, #{nick}."
+      end,
+
+      %w[initials (\w+) (\w+)].to_regexp =>
+      lambda do |nick, event, match|
+        user = User.for_nick match[1]
+        user.initials = match[2]
         reply event, "Got it, #{nick}."
       end,
 
