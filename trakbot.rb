@@ -100,14 +100,14 @@ class Trakbot < Chatbot
         reply event, "Added story #{story.id}"
       end,
 
-      %w[project (\S+)].to_regexp =>
+      %w[project (\d+)].to_regexp =>
       lambda do |nick, event, match|
         user = User.for_nick nick
         user.current_project_id = match[1]
         reply event, "#{nick}, you're on #{user.current_project.name}."
       end,
 
-      %w[story (\S+)].to_regexp =>
+      %w[story (\d+)].to_regexp =>
       lambda do |nick, event, match|
         begin
           user = User.for_nick nick
