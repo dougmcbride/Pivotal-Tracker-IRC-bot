@@ -51,7 +51,7 @@ class Trakbot < Chatbot
       "help: this",
       "token <token>: Teach me your nick's Pivotal Tracker API token",
       "initials [nick] <initials>: Teach me your nick's  (or another nick's) Pivotal Tracker initials",
-      "project <id>: Set your current project",
+      "project <id>|<partial name>: Set your current project",
       "projects: List all known projects",
       "story <id>: Set your current story",
       "story name|estimate <text>: Update the story",
@@ -114,6 +114,21 @@ class Trakbot < Chatbot
         user = User.for_nick nick
         user.current_project_id = match[1]
         reply event, "#{nick}, you're on #{user.current_project.name}."
+      end,
+
+      %w[project (.*[a-z].*)].to_regexp =>
+      lambda do |nick, event, match|
+        user = User.for_nick nick
+        projects = user.projects.select{|p| p.name.downcase.include? match[1].downcase}
+
+        if projects.empty?
+          reply event, "#{nick}, I couldn't find a project with '#{match[1]}' in its name."
+        elsif projects.size > 1
+          reply event, "#{nick}, you'll need to be a bit more specific. I found #{projects.map{|p| p.name} * ', '}."
+        else
+          user.current_project_id = projects.first.id
+          reply event, "#{nick}, you're on #{user.current_project.name}."
+        end
       end,
 
       %w[story (\d+)].to_regexp =>
