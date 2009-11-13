@@ -175,6 +175,18 @@ class Trakbot < Chatbot
         end
       end,
 
+      %w[work (\w+)].to_regexp =>
+      lambda do |nick, event, match|
+        user = User.for_nick nick
+        user2 = User.for_nick match[1]
+
+        if user2.initials
+          list_stories user.find_stories(:owned_by => user2.initials, :state => 'started'), event, user
+        else
+          reply event, "I need #{match[1]}'s Pivotal Tracker initials please: 'initials #{match[1]} <initials>'"
+        end
+      end,
+
       %w[(?:y\w*|list found)].to_regexp =>
       lambda do |nick, event, match|
         user = User.for_nick nick
