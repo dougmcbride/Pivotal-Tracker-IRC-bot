@@ -71,10 +71,6 @@ class Trakbot < Chatbot
     User.save_location = options[:storage_location]
     User.logger = @logger
 
-
-    load_state
-    @tracker = {}
-
     # The channel to join.
     add_room('#' + options[:channel])
 
@@ -249,29 +245,6 @@ class Trakbot < Chatbot
       stories.each_with_index do |story, i|
         reply event, "#{i+1}) #{story.story_type.capitalize} #{story.id}: #{story.name}"
       end
-    end
-  end
-
-  def save_file
-    File.join(@options[:storage_location], 'state.yml')
-  end
-
-  def save_state
-    @logger.debug "Saving state: #{@state.pretty_inspect.chomp}"
-    File.open(save_file, 'w') {|f| f.print @state.to_yaml}
-  end
-
-  def load_state
-    if File.exists? save_file
-      @logger.info "Loading state from #{save_file}"
-      @state = YAML.load_file save_file
-      @logger.debug "Loaded state: #{@state.pretty_inspect}"
-    else
-      @logger.warn "Storage file not found, starting a new one at #{save_file}"
-      @state = {
-        :users => {}
-      }
-      save_state
     end
   end
 end
