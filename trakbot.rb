@@ -39,6 +39,7 @@ optparse.parse!
 
 
 class ChoreFinishedError < StandardError; end
+class NoSearchError < StandardError; end
 
 class Trakbot < Chatbot
   include CommonActions
@@ -53,7 +54,7 @@ class Trakbot < Chatbot
       "initials [nick] <initials>: Teach me your nick's  (or another nick's) Pivotal Tracker initials",
       "project <id>|<partial name>: Set your current project",
       "projects: List all known projects",
-      "story <id>: Set your current story",
+      "story <id|list-index>: Set your current story",
       "story name|estimate <text>: Update the story",
       "story story_type feature|bug|chore|release: Update the story",
       "story current_state unstarted|started|finished|delivered|rejected|accepted: Update the story",
@@ -127,7 +128,24 @@ class Trakbot < Chatbot
         end
       end,
 
-      %w[story (\d+)].to_regexp =>
+      %w[story (\d{1,3})].to_regexp =>
+      lambda do |nick, event, match|
+        begin
+          user = User.for_nick nick
+          fail NoSearchError unless user.found_stories
+          fail IndexError unless story = user.found_stories[match[1].to_i - 1]
+          user.current_story_id = story.id
+          reply event, "#{nick}'s current story: #{user.current_story.name}"
+        rescue NoSearchError
+          reply event, "#{nick}, you haven't done a search, and that's too short to be a Pivotal Tracker id."
+        rescue IndexError
+          reply event, "#{nick}, that story index is too big, your last search only had #{user.found_stories.size} stories in it."
+        rescue RestClient::ResourceNotFound
+          reply event, "#{nick}, I couldn't find that one. Maybe it's not in your current project (#{user.current_project.name})?"
+        end
+      end,
+
+      %w[story (\d{4,})].to_regexp =>
       lambda do |nick, event, match|
         begin
           user = User.for_nick nick
