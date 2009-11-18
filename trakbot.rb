@@ -82,7 +82,7 @@ class Trakbot < Chatbot
       lambda do |nick, event, match|
         user = User.for_nick nick
         user.token = match[1]
-        reply event, one_of["Got it, #{nick}.", "Gotcha, #{nick}.", "All righty, #{nick}!"]
+        reply event, one_of(["Got it, #{nick}.", "Gotcha, #{nick}.", "All righty, #{nick}!"])
       end,
 
       %w[initials (\w+)].to_regexp =>
