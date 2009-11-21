@@ -51,37 +51,39 @@ class Trakbot < Chatbot
     @help = [
       "help: this",
       "help short: get list of command abbreviations",
-      "token <token>: Teach me your nick's Pivotal Tracker API token",
+      "comment|note <text>: Add a comment to the story",
+      "deliver finished: Deliver (and display) all finished stories",
+      "find <text>: Find stories in the project that match the search criteria in <text>.",
+      "finished: List finished stories in the project",
       "initials [nick] <initials>: Teach me your nick's  (or another nick's) Pivotal Tracker initials",
+      "list found: List results of the last find (even if it's long).",
+      "new feature|chore|bug|release <name>: Create a story in the project's Icebox with given name",
       "project <id>|<partial name>: Set your current project",
       "projects: List all known projects",
+      "status: Show current project and story",
       "story <id|list-index>: Set your current story",
+      "story current_state unstarted|started|finished|delivered|rejected|accepted: Update the story",
       "story name|estimate <text>: Update the story",
       "story story_type feature|bug|chore|release: Update the story",
-      "story current_state unstarted|started|finished|delivered|rejected|accepted: Update the story",
-      "comment|note <text>: Add a comment to the story",
-      "find <text>: Find stories in the project that match the search criteria in <text>.",
-      "list found: List results of the last find (even if it's long).",
-      "finished: List finished stories in the project",
-      "deliver finished: Deliver (and display) all finished stories",
-      "new feature|chore|bug|release <name>: Create a story in the project's Icebox with given name",
+      "token <token>: Teach me your nick's Pivotal Tracker API token",
       "work [user]: Show what stories [user] is working on (default is you)"
     ]
 
     @help_short = [
-      ".h|? = help",
-      ".p <id|partial name> = project <id>|<partial name>",
-      ".ps = projects",
-      ".s <id|list-index> = story <id|list-index>",
-      ".s(n|e) <text> = story name|estimate <text>",
-      ".st <type> = story story_type feature|bug|chore|release",
-      ".sn <name> = story name <name>",
-      ".se <estimate> = story estimate <estimate>",
-      ".ss u|s|f|d|r|a = story current_state <state>",
+      ".h = help",
+      ".? = status",
       ".c <text> = comment <text>",
       ".f <text> = find <text>",
       ".l = list found",
       ".n(f|c|b|r) <name> = new feature|chore|bug|release <name>",
+      ".p <id|partial name> = project <id>|<partial name>",
+      ".ps = projects",
+      ".s <id|list-index> = story <id|list-index>",
+      ".s(n|e) <text> = story name|estimate <text>",
+      ".se <estimate> = story estimate <estimate>",
+      ".sn <name> = story name <name>",
+      ".ss u|s|f|d|r|a = story current_state <state>",
+      ".st <type> = story story_type feature|bug|chore|release",
       ".w [user] = work [user]"
     ]
 
@@ -283,6 +285,12 @@ class Trakbot < Chatbot
       end
     end
 
+    show_state = lambda do |nick, event, match|
+      user = User.for_nick nick
+      reply event, "#{nick}'s project: #{user.current_project.name}" if user.current_project
+      reply event, "#{nick}'s story: #{user.current_story.story_type.capitalize} #{user.current_story.id}: #{user.current_story.name}" if user.current_story
+    end
+
     add_trackbot_actions({
       %w[token (\S+)] => set_token,
       %w[initials (\w+)] => set_initials_self,
@@ -301,6 +309,7 @@ class Trakbot < Chatbot
       %w[(?:y\w*|list found)] => list_found,
       %w[deliver finished] => deliver_finished,
       %w[projects] => list_projects,
+      %w[status] => show_state,
       %w[help] => send_help,
       %w[help short] => send_short_help
     })
@@ -319,6 +328,7 @@ class Trakbot < Chatbot
       %w[c (.+)] => create_note,
       %w[(?:/|f) (.+)] => find_stories,
       %w[l] => list_found,
+      %W[\\?] => show_state,
       %w[n(f|c|b|r) (.+)] => create_story_short,
       %w[w] => find_work_self,
       %w[w (\w+)] => find_work_other
