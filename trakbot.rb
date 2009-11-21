@@ -50,6 +50,7 @@ class Trakbot < Chatbot
 
     @help = [
       "help: this",
+      "help short: get list of command abbreviations",
       "token <token>: Teach me your nick's Pivotal Tracker API token",
       "initials [nick] <initials>: Teach me your nick's  (or another nick's) Pivotal Tracker initials",
       "project <id>|<partial name>: Set your current project",
@@ -67,6 +68,23 @@ class Trakbot < Chatbot
       "work [user]: Show what stories [user] is working on (default is you)"
     ]
 
+    @help_short = [
+      ".h|? = help",
+      ".p <id|partial name> = project <id>|<partial name>",
+      ".ps = projects",
+      ".s <id|list-index> = story <id|list-index>",
+      ".s(n|e) <text> = story name|estimate <text>",
+      ".st <type> = story story_type feature|bug|chore|release",
+      ".sn <name> = story name <name>",
+      ".se <estimate> = story estimate <estimate>",
+      ".ss u|s|f|d|r|a = story current_state <state>",
+      ".c <text> = comment <text>",
+      ".f <text> = find <text>",
+      ".l = list found",
+      ".n(f|c|b|r) <name> = new feature|chore|bug|release <name>",
+      ".w [user] = work [user]"
+    ]
+
     @logger.level = eval "Logger::#{options[:logging].to_s.upcase}"
 
     User.save_location = options[:storage_location]
@@ -77,178 +95,233 @@ class Trakbot < Chatbot
 
     nick = options[:nick]
 
-    add_actions({
-      %w[token (\S+)].to_regexp =>
-      lambda do |nick, event, match|
-        user = User.for_nick nick
-        user.token = match[1]
-        reply event, one_of(["Got it, #{nick}.", "Gotcha, #{nick}.", "All righty, #{nick}!"])
-      end,
+    send_help = lambda do |nick, event, match|
+      reply event, "#{nick}, I'm sending you the command list privately (it's long)..."
+      @help.each {|l| reply_privately event, l}
+    end
 
-      %w[initials (\w+)].to_regexp =>
-      lambda do |nick, event, match|
-        user = User.for_nick nick
-        user.initials = match[1]
-        reply event, "Got it, #{nick}."
-      end,
+    send_short_help = lambda do |nick, event, match|
+      reply event, "#{nick}, I'm sending you the list privately (it's long)..."
+      @help_short.each {|l| reply_privately event, l}
+    end
 
-      %w[initials (\w+) (\w+)].to_regexp =>
-      lambda do |nick, event, match|
-        user = User.for_nick match[1]
-        user.initials = match[2]
-        reply event, "Got it, #{nick}."
-      end,
+    project_set_by_id = lambda do |nick, event, match|
+      user = User.for_nick nick
+      user.current_project_id = match[1]
+      reply event, "#{nick}, you're on #{user.current_project.name}."
+    end
 
-      %w[(?:new|add) (feature|chore|bug|release) (.+)].to_regexp =>
-      lambda do |nick, event, match|
-        user = User.for_nick nick
-        story = user.create_story :name => match[2], :story_type => match[1]
-        reply event, "Added story #{story.id}"
-      end,
+    project_set_by_name = lambda do |nick, event, match|
+      user = User.for_nick nick
+      projects = user.projects.select{|p| p.name.downcase.include? match[1].downcase}
 
-      %w[project (\d+)].to_regexp =>
-      lambda do |nick, event, match|
-        user = User.for_nick nick
-        user.current_project_id = match[1]
+      if projects.empty?
+        reply event, "#{nick}, I couldn't find a project with '#{match[1]}' in its name."
+      elsif projects.size > 1
+        reply event, "#{nick}, you'll need to be a bit more specific. I found #{projects.map{|p| p.name} * ', '}."
+      else
+        user.current_project_id = projects.first.id
         reply event, "#{nick}, you're on #{user.current_project.name}."
-      end,
-
-      %w[project (.*[a-z].*)].to_regexp =>
-      lambda do |nick, event, match|
-        user = User.for_nick nick
-        projects = user.projects.select{|p| p.name.downcase.include? match[1].downcase}
-
-        if projects.empty?
-          reply event, "#{nick}, I couldn't find a project with '#{match[1]}' in its name."
-        elsif projects.size > 1
-          reply event, "#{nick}, you'll need to be a bit more specific. I found #{projects.map{|p| p.name} * ', '}."
-        else
-          user.current_project_id = projects.first.id
-          reply event, "#{nick}, you're on #{user.current_project.name}."
-        end
-      end,
-
-      %w[story (\d{1,3})].to_regexp =>
-      lambda do |nick, event, match|
-        begin
-          user = User.for_nick nick
-          fail NoSearchError unless user.found_stories
-          fail IndexError unless story = user.found_stories[match[1].to_i - 1]
-          user.current_story_id = story.id
-          reply event, "#{nick}'s current story: #{user.current_story.name}"
-        rescue NoSearchError
-          reply event, "#{nick}, you haven't done a search, and that's too short to be a Pivotal Tracker id."
-        rescue IndexError
-          reply event, "#{nick}, that story index is too big, your last search only had #{user.found_stories.size} stories in it."
-        rescue RestClient::ResourceNotFound
-          reply event, "#{nick}, I couldn't find that one. Maybe it's not in your current project (#{user.current_project.name})?"
-        end
-      end,
-
-      %w[story (\d{4,})].to_regexp =>
-      lambda do |nick, event, match|
-        begin
-          user = User.for_nick nick
-          user.current_story_id = match[1]
-          reply event, "#{nick}'s current story: #{user.current_story.name}"
-        rescue RestClient::ResourceNotFound
-          reply event, "#{nick}, I couldn't find that one. Maybe it's not in your current project (#{user.current_project.name})?"
-        end
-      end,
-
-      %w[story (story_type|estimate|current_state|name) (.+)].to_regexp =>
-      lambda do |nick, event, match|
-        begin
-          user = User.for_nick nick
-          fail ChoreFinishedError if user.current_story.story_type == 'chore' and match[1] == 'current_state' and match[2] == 'finished'
-          user.update_story match[1] => match[2]
-          reply event, "#{user.current_story.id}: #{match[1]} --> #{match[2]}"
-        rescue RestClient::ResourceNotFound
-          reply event, "#{nick}, I couldn't find that one. Maybe it's not in your current project (#{user.current_project.name})?"
-        rescue ChoreFinishedError
-          reply event, "#{nick}, chores cannot be 'finished'. You probably want 'accepted'."
-        end
-      end,
-
-      %w[(?:comment|note) (.+)].to_regexp =>
-      lambda do |nick, event, match|
-        begin
-          user = User.for_nick nick
-          user.create_note match[1]
-          reply event, "Ok, #{nick}"
-        rescue RestClient::ResourceNotFound
-          reply event, "#{nick}, I couldn't find that one. Maybe it's not in your current project (#{user.current_project.name})?"
-        end
-      end,
-
-      %w[find (.+)].to_regexp =>
-      lambda do |nick, event, match|
-        user = User.for_nick nick
-        list_stories user.find_stories(match[1]), event, user
-      end,
-
-      %w[finished].to_regexp =>
-      lambda do |nick, event, match|
-        user = User.for_nick nick
-        list_stories user.find_stories(:state => 'finished'), event, user
-      end,
-
-      %w[work].to_regexp =>
-      lambda do |nick, event, match|
-        user = User.for_nick nick
-
-        if user.initials
-          list_stories user.find_stories(:owned_by => user.initials, :state => 'started'), event, user
-        else
-          reply event, "I need your Pivotal Tracker initials please: 'initials <initials>'"
-        end
-      end,
-
-      %w[work (\w+)].to_regexp =>
-      lambda do |nick, event, match|
-        user = User.for_nick nick
-        user2 = User.for_nick match[1]
-
-        if user2.initials
-          list_stories user.find_stories(:owned_by => user2.initials, :state => 'started'), event, user
-        else
-          reply event, "I need #{match[1]}'s Pivotal Tracker initials please: 'initials #{match[1]} <initials>'"
-        end
-      end,
-
-      %w[(?:y\w*|list found)].to_regexp =>
-      lambda do |nick, event, match|
-        user = User.for_nick nick
-        list_stories user.found_stories, event, user, true
-      end,
-
-      %w[deliver finished].to_regexp =>
-      lambda do |nick, event, match|
-        user = User.for_nick nick
-        stories = user.current_tracker.deliver_all_finished_stories
-
-        if stories.empty?
-          reply event, "No finished stories in project :("
-        else
-          reply event, "Delivered #{stories.size} stories:"
-          list_stories stories, event, user
-        end
-      end,
-
-      %w[projects].to_regexp =>
-      lambda do |nick, event, match|
-        user = User.for_nick nick
-
-        user.projects.sort_by{|p| p.name}.each_with_index do |project, i|
-          reply event, "#{i+1}) #{project.id}: #{project.name}"
-        end
-      end,
-
-      %w[help].to_regexp =>
-      lambda do |nick, event, match|
-        reply event, "#{nick}, I'm sending you the command list privately (it's long)..."
-        @help.each {|l| reply_privately event, l}
       end
+    end
+
+    set_token = lambda do |nick, event, match|
+      user = User.for_nick nick
+      user.token = match[1]
+      reply event, one_of(["Got it, #{nick}.", "Gotcha, #{nick}.", "All righty, #{nick}!"])
+    end
+
+    set_initials_self = lambda do |nick, event, match|
+      user = User.for_nick nick
+      user.initials = match[1]
+      reply event, "Got it, #{nick}."
+    end
+
+    set_initials_other = lambda do |nick, event, match|
+      user = User.for_nick match[1]
+      user.initials = match[2]
+      reply event, "Got it, #{nick}."
+    end
+
+    create_story = lambda do |nick, event, match|
+      user = User.for_nick nick
+      story = user.create_story :name => match[2], :story_type => match[1]
+      reply event, "Added story #{story.id}"
+    end
+
+    create_story_short = lambda do |nick, event, match|
+      abbrev_map = {:f => :feature, :c => :chore, :b => :bug, :r => :release}
+      create_story.call nick, event, [match[0], abbrev_map[match[1].to_sym].to_s, match[2]]
+    end
+
+    set_story_from_list = lambda do |nick, event, match|
+      begin
+        user = User.for_nick nick
+        fail NoSearchError unless user.found_stories
+        fail IndexError unless story = user.found_stories[match[1].to_i - 1]
+        user.current_story_id = story.id
+        reply event, "#{nick}'s current story: #{user.current_story.name}"
+      rescue NoSearchError
+        reply event, "#{nick}, you haven't done a search, and that's too short to be a Pivotal Tracker id."
+      rescue IndexError
+        reply event, "#{nick}, that story index is too big, your last search only had #{user.found_stories.size} stories in it."
+      rescue RestClient::ResourceNotFound
+        reply event, "#{nick}, I couldn't find that one. Maybe it's not in your current project (#{user.current_project.name})?"
+      end
+    end
+
+    set_story_from_id = lambda do |nick, event, match|
+      begin
+        user = User.for_nick nick
+        user.current_story_id = match[1]
+        reply event, "#{nick}'s current story: #{user.current_story.name}"
+      rescue RestClient::ResourceNotFound
+        reply event, "#{nick}, I couldn't find that one. Maybe it's not in your current project (#{user.current_project.name})?"
+      end
+    end
+
+    @update_story = lambda do |nick, event, match|
+      begin
+        user = User.for_nick nick
+        fail ChoreFinishedError if user.current_story.story_type == 'chore' and match[1] == 'current_state' and match[2] == 'finished'
+        user.update_story match[1] => match[2]
+        reply event, "#{user.current_story.id}: #{match[1]} --> #{match[2]}"
+      rescue RestClient::ResourceNotFound
+        reply event, "#{nick}, I couldn't find that one. Maybe it's not in your current project (#{user.current_project.name})?"
+      rescue ChoreFinishedError
+        reply event, "#{nick}, chores cannot be 'finished'. You probably want 'accepted'."
+      end
+    end
+
+    def update_story_attribute(attribute, nick, event, match)
+      @update_story.call(nick, event, [match[0], attribute.to_s, match[1]])
+    end
+
+    update_story_name = lambda do |nick, event, match|
+      update_story_attribute(:name, nick, event, match)
+    end
+
+    update_story_type = lambda do |nick, event, match|
+      update_story_attribute(:story_type, nick, event, match)
+    end
+
+    update_story_state = lambda do |nick, event, match|
+      abbrev_map = {
+        'u' => :unstarted,
+        's' => :started,
+        'f' => :finished,
+        'd' => :delivered,
+        'r' => :rejected,
+        'a' => :accepted
+      }
+      update_story_attribute(:current_state, nick, event, [match[0], abbrev_map[match[1].slice(0,1)].to_s])
+    end
+
+    update_story_estimate = lambda do |nick, event, match|
+      update_story_attribute(:estimate, nick, event, match)
+    end
+
+    create_note = lambda do |nick, event, match|
+      begin
+        user = User.for_nick nick
+        user.create_note match[1]
+        reply event, "Ok, #{nick}"
+      rescue RestClient::ResourceNotFound
+        reply event, "#{nick}, I couldn't find that one. Maybe it's not in your current project (#{user.current_project.name})?"
+      end
+    end
+
+    find_stories = lambda do |nick, event, match|
+      user = User.for_nick nick
+      list_stories user.find_stories(match[1]), event, user
+    end
+
+    find_finished_stories = lambda do |nick, event, match|
+      user = User.for_nick nick
+      list_stories user.find_stories(:state => 'finished'), event, user
+    end
+
+    find_work_self = lambda do |nick, event, match|
+      user = User.for_nick nick
+      if user.initials
+        list_stories user.find_stories(:owned_by => user.initials, :state => 'started'), event, user
+      else
+        reply event, "I need your Pivotal Tracker initials please: 'initials <initials>'"
+      end
+    end
+
+    find_work_other = lambda do |nick, event, match|
+      user = User.for_nick nick
+      user2 = User.for_nick match[1]
+      if user2.initials
+        list_stories user.find_stories(:owned_by => user2.initials, :state => 'started'), event, user
+      else
+        reply event, "I need #{match[1]}'s Pivotal Tracker initials please: 'initials #{match[1]} <initials>'"
+      end
+    end
+
+    list_found = lambda do |nick, event, match|
+      user = User.for_nick nick
+      list_stories user.found_stories, event, user, true
+    end
+
+    deliver_finished = lambda do |nick, event, match|
+      user = User.for_nick nick
+      stories = user.current_tracker.deliver_all_finished_stories
+      if stories.empty?
+        reply event, "No finished stories in project :("
+      else
+        reply event, "Delivered #{stories.size} stories:"
+        list_stories stories, event, user
+      end
+    end
+
+    list_projects = lambda do |nick, event, match|
+      user = User.for_nick nick
+      user.projects.sort_by{|p| p.name.dwncase}.each_with_index do |project, i|
+        reply event, "#{i+1}) #{project.id}: #{project.name}"
+      end
+    end
+
+    add_trackbot_actions({
+      %w[token (\S+)] => set_token,
+      %w[initials (\w+)] => set_initials_self,
+      %w[initials (\w+) (\w+)] => set_initials_other,
+      %w[(?:new|add) (feature|chore|bug|release) (.+)] => create_story,
+      %w[project (\d+)] => project_set_by_id,
+      %w[project (.*[a-z].*)] => project_set_by_name,
+      %w[story (\d{1,3})] => set_story_from_list,
+      %w[story (\d{4,})] => set_story_from_id,
+      %w[story (story_type|estimate|current_state|name) (.+)] => @update_story,
+      %w[(?:comment|note) (.+)] => create_note,
+      %w[find (.+)] => find_stories,
+      %w[finished] => find_finished_stories,
+      %w[work] => find_work_self,
+      %w[work (\w+)] => find_work_other,
+      %w[(?:y\w*|list found)] => list_found,
+      %w[deliver finished] => deliver_finished,
+      %w[projects] => list_projects,
+      %w[help] => send_help,
+      %w[help short] => send_short_help
+    })
+
+    add_short_tracker_actions({
+      %w[h] => send_help,
+      %w[p (\d+)] => project_set_by_id,
+      %w[p (.*[a-z].*)] => project_set_by_name,
+      %w[ps] => list_projects,
+      %w[s (\d{1,3})] => set_story_from_list,
+      %w[s (\d{4,})] => set_story_from_id,
+      %w[(?:sn|m) (\w+)] => update_story_name,
+      %w[(?:st|t) (\w+)] => update_story_type,
+      %w[(?:ss|a) (\w).*] => update_story_state,
+      %w[(?:se|e) (\w+)] => update_story_estimate,
+      %w[c (.+)] => create_note,
+      %w[(?:/|f) (.+)] => find_stories,
+      %w[l] => list_found,
+      %w[n(f|c|b|r) (.+)] => create_story_short,
+      %w[w] => find_work_self,
+      %w[w (\w+)] => find_work_other
     })
   end
 
@@ -265,14 +338,19 @@ class Trakbot < Chatbot
       end
     end
   end
-end
 
-eval <<EOT
-class Array
-  def to_regexp
-    %r|^\#{(['#{options[:nick]},'] + self) * '\\s+'}$|
+  def add_trackbot_actions(action_hash)
+    action_hash.each do |cmd, action|
+      add_actions %r|^#{([@options[:nick] + ','] + cmd) * '\\s+'}$| => action
+    end
+  end
+
+  def add_short_tracker_actions(action_hash)
+    action_hash.each do |cmd, action|
+      add_actions %r|^\.#{cmd * '\\s*'}$| => action
+    end
   end
 end
-EOT
+
 
 Trakbot.new(options).start
