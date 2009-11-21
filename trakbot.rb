@@ -58,9 +58,11 @@ class Trakbot < Chatbot
       "initials [nick] <initials>: Teach me your nick's  (or another nick's) Pivotal Tracker initials",
       "list found: List results of the last find (even if it's long).",
       "new feature|chore|bug|release <name>: Create a story in the project's Icebox with given name",
+      "project: Set your current project to the last mentioned project",
       "project <id>|<partial name>: Set your current project",
       "projects: List all known projects",
       "status: Show current project and story",
+      "story: Set your current story to the last mentioned story",
       "story <id|list-index>: Set your current story",
       "story current_state unstarted|started|finished|delivered|rejected|accepted: Update the story",
       "story name|estimate <text>: Update the story",
@@ -76,8 +78,10 @@ class Trakbot < Chatbot
       ".f <text> = find <text>",
       ".l = list found",
       ".n(f|c|b|r) <name> = new feature|chore|bug|release <name>",
+      ".p = project",
       ".p <id|partial name> = project <id>|<partial name>",
       ".ps = projects",
+      ".s = story",
       ".s <id|list-index> = story <id|list-index>",
       ".s(n|e) <text> = story name|estimate <text>",
       ".se <estimate> = story estimate <estimate>",
@@ -111,6 +115,7 @@ class Trakbot < Chatbot
       user = User.for_nick nick
       user.current_project_id = match[1]
       reply event, "#{nick}, you're on #{user.current_project.name}."
+      @last_project = user.current_project
     end
 
     project_set_by_name = lambda do |nick, event, match|
@@ -124,6 +129,7 @@ class Trakbot < Chatbot
       else
         user.current_project_id = projects.first.id
         reply event, "#{nick}, you're on #{user.current_project.name}."
+        @last_project = user.current_project
       end
     end
 
@@ -149,6 +155,8 @@ class Trakbot < Chatbot
       user = User.for_nick nick
       story = user.create_story :name => match[2], :story_type => match[1]
       reply event, "Added story #{story.id}"
+      @last_story = story
+      @last_project = user.current_project
     end
 
     create_story_short = lambda do |nick, event, match|
@@ -163,6 +171,8 @@ class Trakbot < Chatbot
         fail IndexError unless story = user.found_stories[match[1].to_i - 1]
         user.current_story_id = story.id
         reply event, "#{nick}'s current story: #{user.current_story.name}"
+        @last_story = user.current_story
+        @last_project = user.current_project
       rescue NoSearchError
         reply event, "#{nick}, you haven't done a search, and that's too short to be a Pivotal Tracker id."
       rescue IndexError
@@ -177,6 +187,8 @@ class Trakbot < Chatbot
         user = User.for_nick nick
         user.current_story_id = match[1]
         reply event, "#{nick}'s current story: #{user.current_story.name}"
+        @last_story = user.current_story
+        @last_project = user.current_project
       rescue RestClient::ResourceNotFound
         reply event, "#{nick}, I couldn't find that one. Maybe it's not in your current project (#{user.current_project.name})?"
       end
@@ -188,6 +200,8 @@ class Trakbot < Chatbot
         fail ChoreFinishedError if user.current_story.story_type == 'chore' and match[1] == 'current_state' and match[2] == 'finished'
         user.update_story match[1] => match[2]
         reply event, "#{user.current_story.id}: #{match[1]} --> #{match[2]}"
+        @last_story = user.current_story
+        @last_project = user.current_project
       rescue RestClient::ResourceNotFound
         reply event, "#{nick}, I couldn't find that one. Maybe it's not in your current project (#{user.current_project.name})?"
       rescue ChoreFinishedError
@@ -291,13 +305,37 @@ class Trakbot < Chatbot
       reply event, "#{nick}'s story: #{user.current_story.story_type.capitalize} #{user.current_story.id}: #{user.current_story.name}" if user.current_story
     end
 
+    set_last_story = lambda do |nick, event, match|
+      user = User.for_nick nick
+      if @last_story
+        user.current_story = @last_story
+        user.current_project_id = @last_project.id
+        reply event, "#{nick}'s current story: #{user.current_story.name}"
+      else
+        reply event, "No last-mentioned story to use, sorry."
+      end
+    end
+
+    set_last_project = lambda do |nick, event, match|
+      user = User.for_nick nick
+      if @last_project
+        user.current_project_id = @last_project.id
+        reply event, "#{nick}'s current project: #{user.current_project.name}"
+      else
+        reply event, "No last-mentioned project to use, sorry."
+      end
+    end
+
+
     add_trackbot_actions({
       %w[token (\S+)] => set_token,
       %w[initials (\w+)] => set_initials_self,
       %w[initials (\w+) (\w+)] => set_initials_other,
       %w[(?:new|add) (feature|chore|bug|release) (.+)] => create_story,
+      %w[project] => set_last_project,
       %w[project (\d+)] => project_set_by_id,
-      %w[project (.*[a-z].*)] => project_set_by_name,
+      %w[project ([a-z]+.*)] => project_set_by_name,
+      %w[story] => set_last_story,
       %w[story (\d{1,3})] => set_story_from_list,
       %w[story (\d{4,})] => set_story_from_id,
       %w[story (story_type|estimate|current_state|name) (.+)] => @update_story,
@@ -316,9 +354,11 @@ class Trakbot < Chatbot
 
     add_short_tracker_actions({
       %w[h] => send_help,
+      %w[p] => set_last_project,
       %w[p (\d+)] => project_set_by_id,
-      %w[p (.*[a-z].*)] => project_set_by_name,
+      %w[p ([a-z]+.*)] => project_set_by_name,
       %w[ps] => list_projects,
+      %w[s] => set_last_story,
       %w[s (\d{1,3})] => set_story_from_list,
       %w[s (\d{4,})] => set_story_from_id,
       %w[(?:sn|m) (\w+)] => update_story_name,
