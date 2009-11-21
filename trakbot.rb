@@ -294,7 +294,7 @@ class Trakbot < Chatbot
 
     list_projects = lambda do |nick, event, match|
       user = User.for_nick nick
-      user.projects.sort_by{|p| p.name.dwncase}.each_with_index do |project, i|
+      user.projects.sort_by{|p| p.name.downcase}.each_with_index do |project, i|
         reply event, "#{i+1}) #{project.id}: #{project.name}"
       end
     end
