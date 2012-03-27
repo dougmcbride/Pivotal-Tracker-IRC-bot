@@ -1,0 +1,15 @@
+Note: This project doesn't seem to run under ruby 1.9.
+
+Once the bot is running, you can ask it for help in the channel.
+
+$ /usr/bin/ruby trakbot.rb --help
+
+Usage: trakbot.rb [options]
+    -c, --channel NAME               Specify IRC channel to /join. (test)
+    -f, --full-name NICK             Specify the bot's IRC full name. (Pivotal Tracker IRC bot)
+    -n, --nick NICK                  Specify the bot's IRC nick. (trackbot)
+    -s, --server HOST                Specify IRC server hostname. (irc.freenode.net)
+    -p, --port NUMBER                Specify IRC port number. (6667)
+    -l, --logging LEVEL              Logging level (debug, info, warn, error, fatal) (warn)
+    -y, --storage-file FILENAME      The directory the bot will use to store its state files in. (.)
+    -h, --help                       Display this screen
