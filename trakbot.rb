@@ -5,9 +5,9 @@ require 'yaml'
 require 'rubygems'
 require 'pivotal-tracker'
 
-require 'chatbot'
-require 'common_actions'
-require 'user'
+require_relative 'chatbot'
+require_relative 'common_actions'
+require_relative 'user'
 
 
 
@@ -21,18 +21,36 @@ options = {
   :storage_location => '.'
 }
 
+class OptionParser
+  def set_opt(short, long, help, defaults, key)
+    on(short, long, help + " (#{defaults[key]})") do |arg|
+      defaults[key] = arg
+    end
+  end
+end
+
 optparse = OptionParser.new do |opts|
   opts.banner = "Usage: #{$0} [options]"
 
-  opts.on('-c', '--channel NAME', 'Specify IRC channel to /join. (test)') {|options[:channel]|}
-  opts.on('-f', '--full-name NICK', "Specify the bot\'s IRC full name. (#{options[:full]})") {|options[:full]|}
-  opts.on('-n', '--nick NICK', "Specify the bot\'s IRC nick. (#{options[:nick]})") {|options[:nick]|}
-  opts.on('-s', '--server HOST', 'Specify IRC server hostname. (irc.freenode.net)') {|options[:server]|}
-  opts.on('-p', '--port NUMBER', Integer, 'Specify IRC port number. (6667)') {|options[:port]|}
-  opts.on('-l', '--logging LEVEL', [:debug, :info, :warn, :error, :fatal], 'Logging level (debug, info, warn, error, fatal) (warn)') {|options[:logging]|}
-  opts.on('-y', '--storage-file FILENAME', 'The directory the bot will use to store its state files in. (.)') {|options[:storage_location]|}
-
-  opts.on_tail('-h', '--help', 'Display this screen') {puts opts; exit}
+  opts.set_opt('-c', '--channel NAME', 'Specify IRC channel to /join.',
+               options,:channel)
+  opts.set_opt('-f', '--full-name NICK', "Specify the bot\'s IRC full name.",
+               options, :full)
+  opts.set_opt('-n', '--nick NICK', "Specify the bot\'s IRC nick.",
+               options, :nick)
+  opts.set_opt('-s', '--server HOST', 'Specify IRC server hostname.',
+               options, :server)
+  opts.set_opt('-p', '--port NUMBER', 'Specify IRC port number.',
+               options, :port)
+  opts.on('-l', '--logging LEVEL', [:debug, :info, :warn, :error, :fatal],
+          'Logging level (debug, info, warn, error, fatal) (warn)') do |level|
+    options[:logging] = level
+  end
+  opts.on('-y', '--storage-file FILENAME',
+          'The directory the bot will store its state files in. (.)') do |l|
+    options[:storage_location] = l
+  end
+  opts.on_tail('-h', '--help', 'Display this screen') { puts opts; exit }
 end
 
 optparse.parse!
