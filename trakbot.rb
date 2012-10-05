@@ -3,6 +3,7 @@ require 'pp'
 require 'yaml'
 
 require 'rubygems'
+require 'bundler/setup'
 require 'pivotal-tracker'
 
 require_relative 'chatbot'
